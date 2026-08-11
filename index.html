@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Content Security Policy — blocks inline scripts/styles and external script sources -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'none';">
+  <title>StudySmart - Exam Prep Organizer & Smart Scheduler</title>
+  <!-- PWA Support -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#8b5cf6">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <!-- Security Headers -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:;">
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Main Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- SECURITY LOCK SCREEN -->
+  <div id="security-lock-screen" class="modal-overlay" style="display: none; z-index: 9999; backdrop-filter: blur(20px);">
+    <div class="modal-card" style="text-align: center; max-width: 320px;">
+      <h2 style="margin-bottom: 20px;">StudySmart Locked</h2>
+      <input type="password" id="lock-pin-input" class="form-input" placeholder="Enter PIN" style="text-align: center; font-size: 24px; letter-spacing: 4px;" maxlength="8">
+      <button id="lock-submit-btn" class="btn btn-primary" style="width: 100%; margin-top: 20px;">Unlock</button>
+      <p id="lock-error-msg" style="color: #ef4444; margin-top: 10px; display: none;"></p>
+    </div>
+  </div>
+
+  <!-- SECURITY SETUP MODAL -->
+  <div id="security-setup-modal" class="modal-overlay" style="display: none; z-index: 9999;">
+    <div class="modal-card">
+      <h2 style="margin-bottom: 20px;">Set Up Security PIN</h2>
+      <p style="margin-bottom: 20px; font-size: 14px; color: #a1a1aa;">Create a 4-8 digit PIN to encrypt your study data.</p>
+      <div class="form-group">
+        <label>New PIN</label>
+        <input type="password" id="setup-pin-input" class="form-input" placeholder="4-8 digits" maxlength="8">
+      </div>
+      <div class="form-group" style="margin-top: 15px;">
+        <label>Confirm PIN</label>
+        <input type="password" id="setup-pin-confirm" class="form-input" placeholder="Confirm PIN" maxlength="8">
+      </div>
+      
+      <div style="margin-top: 20px; text-align: center;">
+        <p style="font-size: 12px; color: #a1a1aa; margin-bottom: 10px;">Optional: Link account for cross-device sync & Premium</p>
+        <button id="google-signin-stub" class="btn btn-secondary" style="width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px;">
+          <svg viewBox="0 0 24 24" width="18" height="18" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+          Sign in with Google
+        </button>
+      </div>
+
+      <button id="setup-submit-btn" class="btn btn-primary" style="width: 100%; margin-top: 20px;">Save & Encrypt</button>
+      <p id="setup-error-msg" style="color: #ef4444; margin-top: 10px; display: none;"></p>
+    </div>
+  </div>
+
+  <div class="glow-bg"></div>
+  
+  <div class="app-container">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" id="app-sidebar">
+      <div class="logo-area">
+        <div class="logo-icon-container">
+          <svg viewBox="0 0 512 512" class="logo-img">
+            <use href="icon.svg#grad1"></use>
+            <!-- Fallback design inside SVG if external ref has issues -->
+            <polygon points="256,100 420,180 256,260 92,180" fill="#8b5cf6" />
+            <path d="M140,210 L140,270 C140,310 372,310 372,270 L372,210" fill="#3b82f6" />
+            <circle cx="256" cy="180" r="15" fill="#ec4899" />
+          </svg>
+        </div>
+        <div class="logo-text">
+          <span class="brand-name">Study<span class="accent-text">Smart</span></span>
+          <span class="brand-tagline">AI Exam Architect</span>
+        </div>
+      </div>
+      
+      <nav class="nav-links">
+        <a href="#" class="nav-item active" data-tab="dashboard" id="nav-dashboard">
+          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" class="nav-icon"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+          <span>Dashboard</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="importer" id="nav-importer">
+          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" class="nav-icon"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <span>Course Importer</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="modules" id="nav-modules">
+          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" class="nav-icon"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          <span>Modules Hub</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="schedule" id="nav-schedule">
+          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" class="nav-icon"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <span>Study Scheduler</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="flashcards" id="nav-flashcards">
+          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" class="nav-icon"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 8h10M7 12h10M7 16h10"/></svg>
+          <span>Active Recall</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="pomodoro" id="nav-pomodoro">
+          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" class="nav-icon"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span>Focus Room</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="jarvis" id="nav-jarvis">
+          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" class="nav-icon"><path d="M12 2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/><path d="M12 14v4M12 22v-2M8 18h8M4 12v-2a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v2"/><path d="M9 12v2M15 12v2"/></svg>
+          <span>Jarvis AI</span>
+        </a>
+      </nav>
+      
+      <div class="sidebar-footer">
+        <button class="btn btn-secondary install-pwa-btn" id="install-pwa-btn" style="display: none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><path d="M12 5v14M5 12h14"/></svg>
+          <span>Install App</span>
+        </button>
+
+        <!-- Manual Lock Button -->
+        <button class="btn btn-secondary w-full" id="manual-lock-btn" title="Lock App Now" style="display:none; margin-top:8px;">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" class="mr-1"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          Lock
+        </button>
+        
+        <div class="offline-indicator offline" id="offline-badge" style="display: none;">
+          <span class="indicator-dot"></span> Offline Mode
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Workspace Container -->
+    <main class="main-content">
+      <!-- Top Action Bar -->
+      <header class="top-header">
+        <div class="header-welcome">
+          <button class="mobile-menu-toggle" id="mobile-toggle" aria-label="Toggle Navigation Menu">
+            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+          <div class="welcome-text-wrapper">
+            <h1 class="welcome-title">Welcome back, <span class="student-name" id="profile-name">Scholar</span></h1>
+            <p class="current-date-display" id="date-display">Wednesday, May 27, 2026</p>
+          </div>
+        </div>
+        
+        <div class="header-actions">
+          <button class="btn btn-secondary btn-sm" id="premium-upgrade-btn" style="border-color: #f59e0b; color: #f59e0b; margin-right: 10px;">
+            <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" style="margin-right: 4px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            Go Premium
+          </button>
+          
+          <div class="streak-badge" title="Consecutive study days!">
+            <span class="streak-icon">🔥</span>
+            <span class="streak-count" id="streak-counter">0</span> Days
+          </div>
+          
+          <div class="database-controls">
+            <button class="btn btn-icon" id="export-data-btn" title="Backup Data (JSON)">
+              <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 13 7 8"/><line x1="12" y1="13" x2="12" y2="3"/></svg>
+            </button>
+            <button class="btn btn-icon" id="import-data-btn" title="Restore Backup">
+              <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </button>
+            <input type="file" id="backup-file-input" style="display:none;" accept=".json">
+          </div>
+        </div>
+      </header>
+
+      <!-- Scrollable Tab Content -->
+      <div class="tab-viewport">
+        
+        <!-- TAB 1: DASHBOARD -->
+        <section id="tab-dashboard" class="tab-pane active">
+          <!-- Quick Status Cards -->
+          <div class="grid-layout cols-3">
+            <div class="glass-card stat-card glow-card-purple">
+              <div class="stat-header">
+                <h3>Overall Readiness</h3>
+                <span class="stat-icon purple-text">🎯</span>
+              </div>
+              <div class="stat-value" id="dash-readiness">0%</div>
+              <p class="stat-description">Average mastery across all modules</p>
+              <div class="progress-bar-container">
+                <div class="progress-bar-fill purple-bg" id="dash-readiness-progress" style="width: 0%"></div>
+              </div>
+            </div>
+
+            <div class="glass-card stat-card glow-card-blue">
+              <div class="stat-header">
+                <h3>Study Focused Today</h3>
+                <span class="stat-icon blue-text">⏱️</span>
+              </div>
+              <div class="stat-value" id="dash-study-time">0m</div>
+              <p class="stat-description" id="dash-study-budget-desc">Remaining budget: 180 min</p>
+              <div class="progress-bar-container">
+                <div class="progress-bar-fill blue-bg" id="dash-time-progress" style="width: 0%"></div>
+              </div>
+            </div>
+
+            <div class="glass-card stat-card glow-card-green">
+              <div class="stat-header">
+                <h3>Upcoming Exam</h3>
+                <span class="stat-icon green-text">📅</span>
+              </div>
+              <div class="stat-value size-sm" id="dash-next-exam">None</div>
+              <p class="stat-description" id="dash-next-exam-countdown">Set exam dates in Modules</p>
+            </div>
+          </div>
+
+          <!-- Bottom Dashboard Row -->
+          <div class="grid-layout cols-2-1 mt-6">
+            <!-- Daily Schedule Preview -->
+            <div class="glass-card">
+              <div class="card-header">
+                <h2 class="card-title">Today's Study Agenda</h2>
+                <button class="btn btn-secondary btn-sm" id="dash-goto-schedule">Open Scheduler</button>
+              </div>
+              <div class="agenda-list" id="dash-agenda-list">
+                <div class="empty-state">
+                  <p>No study tasks scheduled for today. Import modules and generate a schedule to get started!</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Active Recall Summary -->
+            <div class="glass-card flex-column">
+              <div class="card-header">
+                <h2 class="card-title">Leitner Box Status</h2>
+              </div>
+              <div class="spaced-rep-stats">
+                <div class="leitner-boxes-diagram">
+                  <div class="leitner-box-node" title="Box 1: Needs frequent review">
+                    <span class="node-count" id="leitner-box-1-count">0</span>
+                    <span class="node-label">Box 1</span>
+                  </div>
+                  <div class="leitner-box-node" title="Box 2">
+                    <span class="node-count" id="leitner-box-2-count">0</span>
+                    <span class="node-label">Box 2</span>
+                  </div>
+                  <div class="leitner-box-node" title="Box 3">
+                    <span class="node-count" id="leitner-box-3-count">0</span>
+                    <span class="node-label">Box 3</span>
+                  </div>
+                  <div class="leitner-box-node" title="Box 4">
+                    <span class="node-count" id="leitner-box-4-count">0</span>
+                    <span class="node-label">Box 4</span>
+                  </div>
+                  <div class="leitner-box-node node-mastered" title="Box 5: Fully Mastered">
+                    <span class="node-count" id="leitner-box-5-count">0</span>
+                    <span class="node-label">Box 5</span>
+                  </div>
+                </div>
+                <div class="box-status-action">
+                  <p class="box-review-hint text-center" id="box-review-hint">You have 0 flashcards ready for review.</p>
+                  <button class="btn btn-primary w-full mt-4" id="dash-start-review" disabled>Start Active Recall</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 2: COURSE IMPORTER -->
+        <section id="tab-importer" class="tab-pane">
+          <div class="glass-card max-width-md mx-auto">
+            <div class="card-header flex-column align-start">
+              <h2 class="card-title text-2xl">Smart University Curriculum Importer</h2>
+              <p class="card-subtitle text-muted">Bypass manual typing. Enter your course details or paste the text from your university's program handbook, and our smart parser will identify the modules, semesters, and recommended study sequence.</p>
+            </div>
+            
+            <div class="form-container mt-4">
+              <div class="grid-layout cols-2">
+                <div class="form-group">
+                  <label for="import-uni">University Name</label>
+                  <input type="text" id="import-uni" placeholder="e.g. Stanford, University of Cape Town" class="form-input">
+                </div>
+                <div class="form-group">
+                  <label for="import-course">Course / Degree Name</label>
+                  <input type="text" id="import-course" placeholder="e.g. Computer Science, Accounting" class="form-input">
+                </div>
+              </div>
+
+              <!-- Quick Templates Dropdown -->
+              <div class="form-group mt-4">
+                <label for="import-template">Or Load a Standard Curriculum Template</label>
+                <select id="import-template" class="form-select">
+                  <option value="">-- Choose a university &amp; programme template --</option>
+                  <optgroup label="🇳🇦 NUST — Namibia University of Science &amp; Technology">
+                    <option value="nust_it">NUST · Information Technology</option>
+                    <option value="nust_eng">NUST · Engineering (Electrical / Mechanical)</option>
+                    <option value="nust_biz">NUST · Business &amp; Management</option>
+                  </optgroup>
+                  <optgroup label="🇳🇦 UNAM — University of Namibia">
+                    <option value="unam_science">UNAM · Natural Sciences (Bio / Chem / Physics)</option>
+                    <option value="unam_law">UNAM · Law (LLB Programme)</option>
+                    <option value="unam_econ">UNAM · Economics &amp; Statistics</option>
+                  </optgroup>
+                  <optgroup label="🇳🇦 IUM — International University of Management">
+                    <option value="ium_business">IUM · Business Administration</option>
+                    <option value="ium_ict">IUM · Information &amp; Communication Technology</option>
+                  </optgroup>
+                  <optgroup label="🌍 UCT — University of Cape Town (South Africa, #1 Africa)">
+                    <option value="uct_popular">UCT · Popular Courses (Science, Law, CS, Economics, Environment)</option>
+                  </optgroup>
+                  <optgroup label="🌍 WITS — University of the Witwatersrand (South Africa)">
+                    <option value="wits_popular">WITS · Popular Courses (Medicine, Mining, Finance, Sociology)</option>
+                  </optgroup>
+                  <optgroup label="🌍 University of Nairobi (Kenya)">
+                    <option value="nairobi_popular">Nairobi · Popular Courses (Agriculture, Public Health, Engineering, Cyber)</option>
+                  </optgroup>
+                  <optgroup label="🌍 Makerere University (Uganda)">
+                    <option value="makerere_popular">Makerere · Popular Courses (Social Sciences, Law, Medicine, Education)</option>
+                  </optgroup>
+                  <optgroup label="🌍 Cairo University (Egypt, Largest in Africa)">
+                    <option value="cairo_popular">Cairo · Popular Courses (Engineering, Architecture, Pharmacy, Media)</option>
+                  </optgroup>
+                  <optgroup label="🌍 UNISA — Univ. of South Africa (Open Distance Learning)">
+                    <option value="unisa_popular">UNISA · Popular Courses (IT, Psychology, Accounting, Systems Analysis)</option>
+                  </optgroup>
+                </select>
+              </div>
+
+              <!-- Paste Syllabus Container -->
+              <div class="form-group mt-4">
+                <div class="label-with-action">
+                  <label for="import-raw-text">Paste University Syllabus/Module Directory Text</label>
+                  <button class="btn-link btn-sm" id="search-curriculum-helper-btn">
+                    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" class="mr-1"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    Search Curriculum Page
+                  </button>
+                </div>
+                <textarea id="import-raw-text" placeholder="Copy-paste the syllabus descriptions, handbook list, or course schedule tables directly here...
+
+Example format:
+CS-101 Introduction to Programming (Semester 1, Prereq: None)
+CS-102 Data Structures & Algorithms (Semester 2, Prereq: CS-101)
+MTH-201 Calculus I (Semester 1, Prereq: Math Level 3)
+..." class="form-textarea" rows="8"></textarea>
+              </div>
+
+              <button class="btn btn-primary w-full mt-6" id="parse-curriculum-btn">
+                <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" class="mr-2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                Extract Modules &amp; Structures
+              </button>
+            </div>
+          </div>
+
+          <!-- Parser Results Preview Panel (Initially Hidden) -->
+          <div class="glass-card mt-6 max-width-md mx-auto" id="parser-results-card" style="display: none;">
+            <div class="card-header">
+              <h3 class="card-title">Parsed Curriculum Preview</h3>
+              <span class="badge badge-success" id="parsed-count-badge">0 Modules Found</span>
+            </div>
+            
+            <p class="text-sm text-muted mb-4">We found the following modules. Set difficulty levels and target semesters, then import them directly to your Modules Hub.</p>
+            
+            <div class="parsed-modules-list" id="parsed-modules-list">
+              <!-- Dynamically Populated -->
+            </div>
+
+            <div class="parser-actions mt-6">
+              <button class="btn btn-secondary" id="parser-cancel-btn">Discard</button>
+              <button class="btn btn-primary" id="parser-commit-btn">Import Checked Modules</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 3: MODULES HUB -->
+        <section id="tab-modules" class="tab-pane">
+          <div class="header-action-row mb-6">
+            <div>
+              <h2 class="section-title">My Registered Modules</h2>
+              <p class="section-subtitle">Track dates, confidence levels, and topic completions for your exams.</p>
+            </div>
+            <button class="btn btn-primary" id="add-module-modal-btn">
+              <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" class="mr-2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add Module
+            </button>
+          </div>
+
+          <!-- Modules Grid -->
+          <div class="grid-layout cols-3" id="modules-grid">
+            <!-- Dynamically Populated -->
+            <div class="empty-state cols-span-3">
+              <p>No modules added yet. Add a module manually or use the Course Importer to extract modules from your university syllabus!</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 4: STUDY SCHEDULER -->
+        <section id="tab-schedule" class="tab-pane">
+          <div class="grid-layout cols-1-2">
+            <!-- Planner Configuration -->
+            <div class="glass-card">
+              <div class="card-header">
+                <h2 class="card-title">Smart Schedule Settings</h2>
+              </div>
+              <div class="form-container mt-4">
+                <div class="form-group">
+                  <label for="sched-hours-weekday">Study Budget: Weekdays (Hours/Day)</label>
+                  <input type="number" id="sched-hours-weekday" value="3" min="1" max="12" class="form-input">
+                </div>
+                
+                <div class="form-group mt-3">
+                  <label for="sched-hours-weekend">Study Budget: Weekends (Hours/Day)</label>
+                  <input type="number" id="sched-hours-weekend" value="5" min="1" max="16" class="form-input">
+                </div>
+
+                <div class="form-group mt-3">
+                  <label for="sched-start-date">Schedule Start Date</label>
+                  <input type="date" id="sched-start-date" class="form-input">
+                </div>
+
+                <div class="form-group mt-3">
+                  <label for="sched-prioritize-by">Prioritization Bias</label>
+                  <select id="sched-prioritize-by" class="form-select">
+                    <option value="exam-proximity">Exam Urgency (Closest Exam First)</option>
+                    <option value="difficulty-first">Difficulty Weighted (Hardest First)</option>
+                    <option value="equal-split">Even Distribution (Balanced Study)</option>
+                  </select>
+                </div>
+
+                <div class="alert-box alert-info mt-4">
+                  <p class="text-xs">Generating a schedule distributes the uncompleted topics of your active modules across the calendar. The system skips exams that are already passed.</p>
+                </div>
+
+                <button class="btn btn-primary w-full mt-6" id="generate-schedule-btn">
+                  <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" class="mr-2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><path d="M16 2v4M8 2v4M2 10h20"/></svg>
+                  Generate Smart Schedule
+                </button>
+              </div>
+            </div>
+
+            <!-- Calendar / Agenda Output -->
+            <div class="glass-card">
+              <div class="card-header">
+                <h2 class="card-title">Your Study Roadmap</h2>
+                <div class="agenda-filter">
+                  <button class="btn btn-secondary btn-sm active" id="filter-all-sched">All Days</button>
+                  <button class="btn btn-secondary btn-sm" id="filter-pending-sched">Incomplete</button>
+                </div>
+              </div>
+              
+              <div class="schedule-calendar-list mt-4" id="schedule-sessions-container">
+                <!-- Dynamically Populated -->
+                <div class="empty-state">
+                  <p>Your calendar is empty. Generate a schedule in the settings panel to schedule your topics!</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 5: ACTIVE RECALL / FLASHCARDS -->
+        <section id="tab-flashcards" class="tab-pane">
+          <div class="header-action-row mb-6">
+            <div>
+              <h2 class="section-title">Active Recall Decks</h2>
+              <p class="section-subtitle">Retain complex terms using the Leitner Spaced-Repetition system.</p>
+            </div>
+            <div class="deck-actions">
+              <button class="btn btn-secondary mr-2" id="add-flashcard-modal-btn">
+                <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" class="mr-2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Add Flashcard
+              </button>
+            </div>
+          </div>
+
+          <div class="grid-layout cols-1-2">
+            <!-- Left Side: Deck selector and box status -->
+            <div class="glass-card">
+              <h3 class="card-title mb-4">Choose a Deck</h3>
+              <div class="form-group mb-4">
+                <label for="flashcard-deck-select">Module Deck</label>
+                <select id="flashcard-deck-select" class="form-select">
+                  <!-- Dynamically Populated -->
+                </select>
+              </div>
+
+              <!-- Leitner details list -->
+              <div class="leitner-details-list">
+                <div class="leitner-box-row" data-box="1">
+                  <div class="box-badge box-1-bg">Box 1</div>
+                  <div class="box-row-info">
+                    <span class="box-desc">Review every day</span>
+                    <span class="box-count" id="deck-box-1-count">0 cards</span>
+                  </div>
+                </div>
+                <div class="leitner-box-row" data-box="2">
+                  <div class="box-badge box-2-bg">Box 2</div>
+                  <div class="box-row-info">
+                    <span class="box-desc">Review every 2 days</span>
+                    <span class="box-count" id="deck-box-2-count">0 cards</span>
+                  </div>
+                </div>
+                <div class="leitner-box-row" data-box="3">
+                  <div class="box-badge box-3-bg">Box 3</div>
+                  <div class="box-row-info">
+                    <span class="box-desc">Review every 4 days</span>
+                    <span class="box-count" id="deck-box-3-count">0 cards</span>
+                  </div>
+                </div>
+                <div class="leitner-box-row" data-box="4">
+                  <div class="box-badge box-4-bg">Box 4</div>
+                  <div class="box-row-info">
+                    <span class="box-desc">Review every 7 days</span>
+                    <span class="box-count" id="deck-box-4-count">0 cards</span>
+                  </div>
+                </div>
+                <div class="leitner-box-row" data-box="5">
+                  <div class="box-badge box-5-bg">Box 5</div>
+                  <div class="box-row-info">
+                    <span class="box-desc">Mastered. Review monthly</span>
+                    <span class="box-count" id="deck-box-5-count">0 cards</span>
+                  </div>
+                </div>
+              </div>
+              
+              <button class="btn btn-primary w-full mt-6" id="start-recall-session-btn" disabled>
+                Review Deck (0 Ready)
+              </button>
+            </div>
+
+            <!-- Right Side: Test Area -->
+            <div class="glass-card flex-column justify-center align-center min-height-card" id="flashcard-study-area">
+              <div class="empty-state" id="flashcard-study-empty">
+                <svg viewBox="0 0 24 24" width="64" height="64" stroke="#8b5cf6" stroke-width="1.5" fill="none" opacity="0.6" class="mb-4"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 8h10M7 12h10M7 16h10"/></svg>
+                <h3>Active Recall Workspace</h3>
+                <p class="max-width-sm text-center">Select a module from the dropdown on the left, check how many cards are ready, and click "Review Deck" to start testing your memory!</p>
+              </div>
+
+              <!-- Interactive Card Viewer (Initially Hidden) -->
+              <div class="flashcard-session-container w-full" id="flashcard-session-view" style="display: none;">
+                <div class="session-progress-header">
+                  <span class="session-counter" id="card-session-counter">Card 1 of 5</span>
+                  <button class="btn-link text-sm" id="quit-recall-btn">End Session</button>
+                </div>
+                
+                <div class="progress-bar-container mt-2 mb-6">
+                  <div class="progress-bar-fill purple-bg" id="card-session-progress-bar" style="width: 20%"></div>
+                </div>
+
+                <!-- FLIP CARD -->
+                <div class="flashcard-perspective">
+                  <div class="flashcard-inner" id="interactive-flashcard">
+                    <div class="flashcard-face flashcard-front">
+                      <div class="card-box-tag" id="card-current-box-tag">Box 1</div>
+                      <div class="card-content-text" id="card-front-content">Front of the card question goes here?</div>
+                      <div class="card-prompt-hint">Tap / Click Card to Reveal Answer</div>
+                    </div>
+                    <div class="flashcard-face flashcard-back">
+                      <div class="card-box-tag" id="card-current-box-tag-back">Box 1</div>
+                      <div class="card-content-text" id="card-back-content">Back of the card answer goes here.</div>
+                      <div class="card-prompt-hint">Rate your recall strength below:</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- RATING CONTROLS -->
+                <div class="card-rating-actions mt-8" id="card-rating-controls" style="display: none;">
+                  <button class="btn btn-secondary w-full" id="rate-fail-btn">
+                    ❌ Forgot It (Box 1)
+                  </button>
+                  <button class="btn btn-primary w-full" id="rate-success-btn">
+                    ✅ Remembered! (Upgrade)
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 6: FOCUS ROOM / POMODORO -->
+        <section id="tab-pomodoro" class="tab-pane">
+          <div class="grid-layout cols-1-2 max-width-lg mx-auto">
+            <!-- Focus Stats and Selectors -->
+            <div class="glass-card flex-column justify-between">
+              <div>
+                <h3 class="card-title mb-4">Focus Settings</h3>
+                
+                <div class="form-group mb-4">
+                  <label for="pomo-module-select">Associate study session with module</label>
+                  <select id="pomo-module-select" class="form-select">
+                    <option value="">-- General Study --</option>
+                  </select>
+                </div>
+
+                <div class="form-group mb-4">
+                  <label for="pomo-topic-select">Specific Topic</label>
+                  <select id="pomo-topic-select" class="form-select" disabled>
+                    <option value="">-- General Module Review --</option>
+                  </select>
+                </div>
+
+                <div class="form-group mb-4">
+                  <label for="pomo-sound">Alarm Tone</label>
+                  <select id="pomo-sound" class="form-select">
+                    <option value="digital">Digital Beep</option>
+                    <option value="chime">Warm Chime</option>
+                    <option value="bell">Library Bell</option>
+                    <option value="none">Mute (Visual Only)</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="pomo-ambient">Ambient Atmosphere</label>
+                  <select id="pomo-ambient" class="form-select">
+                    <option value="silent">No Background Sound</option>
+                    <option value="rain">Simulated Rain Noise</option>
+                    <option value="lofi">Focus Lofi Synthesizer</option>
+                    <option value="white">Static White Noise</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="pomodoro-stats-summary mt-6 border-top pt-4">
+                <h4 class="text-sm font-semibold uppercase text-muted mb-2">Today's Focus Summary</h4>
+                <div class="grid-layout cols-2 text-center">
+                  <div class="stat-mini">
+                    <span class="stat-mini-val" id="pomo-total-today">0</span>
+                    <span class="stat-mini-lbl">Completed Sessions</span>
+                  </div>
+                  <div class="stat-mini">
+                    <span class="stat-mini-val" id="pomo-mins-today">0m</span>
+                    <span class="stat-mini-lbl">Total Study Minutes</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Main Interactive Timer Circle -->
+            <div class="glass-card flex-column align-center justify-center min-height-card border-glow-purple">
+              <!-- Timer Mode Selectors -->
+              <div class="timer-mode-buttons">
+                <button class="timer-mode-btn active" data-mode="focus">Pomodoro</button>
+                <button class="timer-mode-btn" data-mode="short">Short Break</button>
+                <button class="timer-mode-btn" data-mode="long">Long Break</button>
+              </div>
+
+              <!-- Circle Progress Area -->
+              <div class="timer-visual-container mt-6">
+                <svg class="timer-svg" viewBox="0 0 200 200">
+                  <circle class="timer-circle-bg" cx="100" cy="100" r="90" />
+                  <circle class="timer-circle-progress" id="timer-progress-ring" cx="100" cy="100" r="90" stroke-dasharray="565.48" stroke-dashoffset="0" />
+                </svg>
+                <div class="timer-text-container">
+                  <span class="timer-clock" id="timer-clock-display">25:00</span>
+                  <span class="timer-state-label" id="timer-state-display">Focus Time</span>
+                </div>
+              </div>
+
+              <!-- Control Buttons -->
+              <div class="timer-controls-buttons mt-8">
+                <button class="btn btn-secondary btn-icon-lg" id="timer-reset-btn" title="Reset Session">
+                  <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                </button>
+                
+                <button class="btn btn-primary btn-play-large" id="timer-toggle-btn" title="Start Timer">
+                  <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor" stroke="currentColor" stroke-width="2" id="timer-toggle-icon"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                </button>
+
+                <button class="btn btn-secondary btn-icon-lg" id="timer-skip-btn" title="Skip Session">
+                  <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 7: JARVIS AI ASSISTANT -->
+        <section id="tab-jarvis" class="tab-pane">
+          <div class="grid-layout cols-1-2 max-width-lg mx-auto h-full">
+            <!-- Left Side: Settings and Prompts -->
+            <div class="glass-card flex-column">
+              <div class="card-header border-bottom pb-4 mb-4">
+                <h2 class="card-title">Jarvis AI Setup</h2>
+              </div>
+              <div class="form-group mb-4">
+                <label for="gemini-api-key">Gemini API Key (Required for Cloud AI)</label>
+                <input type="password" id="gemini-api-key" placeholder="Enter your Gemini API key" class="form-input">
+                <p class="text-xs text-muted mt-2">Get a free key from Google AI Studio. Stored securely on your device.</p>
+              </div>
+              <button class="btn btn-primary w-full" id="save-gemini-key-btn">Save API Key</button>
+              
+              <div class="mt-6 border-top pt-4">
+                <h4 class="text-sm font-semibold mb-3">Quick Prompts</h4>
+                <div class="flex-column gap-2">
+                  <button class="btn btn-secondary text-sm text-left" onclick="fillJarvisPrompt('Explain the last topic I struggled with')">Explain last topic</button>
+                  <button class="btn btn-secondary text-sm text-left" onclick="fillJarvisPrompt('Generate 5 flashcards for my upcoming exam')">Generate Flashcards</button>
+                  <button class="btn btn-secondary text-sm text-left" onclick="fillJarvisPrompt('Quiz me on Biology')">Quiz me</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Side: Chat Interface -->
+            <div class="glass-card flex-column min-height-card">
+              <div class="card-header border-bottom pb-4 mb-4">
+                <h2 class="card-title">Chat with Jarvis</h2>
+                <span class="badge badge-success" id="jarvis-status-badge">Ready</span>
+              </div>
+              
+              <div class="chat-container flex-1 overflow-y-auto mb-4" id="jarvis-chat-history" style="min-height: 300px; display: flex; flex-direction: column; gap: 15px;">
+                <div class="chat-message assistant" style="background: rgba(139, 92, 246, 0.1); padding: 10px 15px; border-radius: 12px; align-self: flex-start; max-width: 80%;">
+                  Hello! I'm Jarvis, your AI study assistant. How can I help you today?
+                </div>
+              </div>
+              
+              <div class="chat-input-area" style="display: flex; gap: 10px;">
+                <textarea id="jarvis-input" class="form-textarea flex-1" rows="2" placeholder="Ask me anything..."></textarea>
+                <button class="btn btn-primary" id="jarvis-send-btn" style="align-self: flex-end;">
+                  <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- ==================== MODAL OVERLAYS ==================== -->
+  
+  <!-- Add/Edit Module Modal -->
+  <div class="modal-overlay" id="module-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title" id="module-modal-title">Add Study Module</h3>
+        <button class="btn-close modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="module-form">
+          <input type="hidden" id="module-edit-id">
+          
+          <div class="grid-layout cols-2">
+            <div class="form-group">
+              <label for="module-code">Module Code *</label>
+              <input type="text" id="module-code" required placeholder="e.g. CS101" class="form-input">
+            </div>
+            <div class="form-group">
+              <label for="module-name">Module Name *</label>
+              <input type="text" id="module-name" required placeholder="e.g. Calculus I" class="form-input">
+            </div>
+          </div>
+
+          <div class="grid-layout cols-2 mt-3">
+            <div class="form-group">
+              <label for="module-exam-date">Exam Date</label>
+              <input type="date" id="module-exam-date" class="form-input">
+            </div>
+            <div class="form-group">
+              <label for="module-difficulty">Difficulty Level</label>
+              <select id="module-difficulty" class="form-select">
+                <option value="easy">Easy (Low prep needed)</option>
+                <option value="medium" selected>Medium (Standard prep)</option>
+                <option value="hard">Hard (High prep needed)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group mt-3">
+            <label for="module-color">Accent Color Theme</label>
+            <div class="color-picker-palette">
+              <label class="color-swatch-label"><input type="radio" name="module-color" value="#8b5cf6" checked><span class="swatch" style="background:#8b5cf6"></span></label>
+              <label class="color-swatch-label"><input type="radio" name="module-color" value="#3b82f6"><span class="swatch" style="background:#3b82f6"></span></label>
+              <label class="color-swatch-label"><input type="radio" name="module-color" value="#10b981"><span class="swatch" style="background:#10b981"></span></label>
+              <label class="color-swatch-label"><input type="radio" name="module-color" value="#ec4899"><span class="swatch" style="background:#ec4899"></span></label>
+              <label class="color-swatch-label"><input type="radio" name="module-color" value="#f59e0b"><span class="swatch" style="background:#f59e0b"></span></label>
+              <label class="color-swatch-label"><input type="radio" name="module-color" value="#ef4444"><span class="swatch" style="background:#ef4444"></span></label>
+            </div>
+          </div>
+
+          <div class="form-group mt-4">
+            <label>Topics / Chapters checklist</label>
+            <p class="text-xs text-muted mb-2">Break down the module. Enter one topic per line. We will schedule these for you.</p>
+            <textarea id="module-topics" rows="4" placeholder="Chapter 1: Limits &amp; Continuity
+Chapter 2: Derivative Rules
+Chapter 3: Integrals
+..." class="form-textarea"></textarea>
+          </div>
+
+          <button type="submit" class="btn btn-primary w-full mt-6" id="module-submit-btn">Save Module</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Flashcard Modal -->
+  <div class="modal-overlay" id="flashcard-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Create Active Recall Card</h3>
+        <button class="btn-close modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="flashcard-form">
+          <div class="form-group">
+            <label for="card-deck-select-modal">Select Module Deck *</label>
+            <select id="card-deck-select-modal" required class="form-select">
+              <!-- Dynamically Populated -->
+            </select>
+          </div>
+
+          <div class="form-group mt-3">
+            <label for="card-front">Front Question / Prompt *</label>
+            <textarea id="card-front" required placeholder="e.g. What is the complexity of binary search?" class="form-textarea" rows="3"></textarea>
+          </div>
+
+          <div class="form-group mt-3">
+            <label for="card-back">Back Answer / Details *</label>
+            <textarea id="card-back" required placeholder="e.g. O(log n). It repeatedly divides the search interval in half." class="form-textarea" rows="4"></textarea>
+          </div>
+
+          <button type="submit" class="btn btn-primary w-full mt-6">Create Flashcard</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Module Details / Topic Manager Drawer/Modal -->
+  <div class="modal-overlay" id="details-modal">
+    <div class="modal-card modal-card-large">
+      <div class="modal-header" id="details-header" style="border-left: 6px solid var(--accent-purple);">
+        <div>
+          <span class="badge" id="details-module-code">CS101</span>
+          <h3 class="modal-title mt-1" id="details-module-title">Module Title</h3>
+        </div>
+        <button class="btn-close modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="grid-layout cols-3 text-center mb-6">
+          <div class="glass-card shadow-none bg-overlay border-none">
+            <div class="text-muted text-xs uppercase font-semibold">Exam Date</div>
+            <div class="text-lg font-bold mt-1" id="details-exam-date">None</div>
+          </div>
+          <div class="glass-card shadow-none bg-overlay border-none">
+            <div class="text-muted text-xs uppercase font-semibold">Days Remaining</div>
+            <div class="text-lg font-bold mt-1 text-warn" id="details-countdown">-</div>
+          </div>
+          <div class="glass-card shadow-none bg-overlay border-none">
+            <div class="text-muted text-xs uppercase font-semibold">Confidence Rating</div>
+            <div class="text-lg font-bold mt-1 capitalize" id="details-difficulty">Medium</div>
+          </div>
+        </div>
+
+        <div class="grid-layout cols-1-2">
+          <!-- Add topic and deck actions -->
+          <div class="flex-column gap-4">
+            <div class="glass-card shadow-none bg-overlay border-none">
+              <h4 class="text-sm font-semibold mb-3">Add Study Topic</h4>
+              <div class="form-group">
+                <input type="text" id="details-new-topic-name" placeholder="e.g. Lesson 4: Binary Trees" class="form-input">
+                <button class="btn btn-primary w-full mt-2" id="details-add-topic-btn">Add Topic</button>
+              </div>
+            </div>
+            
+            <div class="glass-card shadow-none bg-overlay border-none">
+              <h4 class="text-sm font-semibold mb-2">Study Shortcuts</h4>
+              <button class="btn btn-secondary w-full text-sm mb-2" id="details-pomo-shortcut">
+                ⏱️ Study in Focus Room
+              </button>
+              <button class="btn btn-secondary w-full text-sm" id="details-cards-shortcut">
+                💡 Review Flashcards
+              </button>
+            </div>
+
+            <button class="btn btn-danger w-full text-sm" id="details-delete-module-btn">
+              🗑️ Delete Entire Module
+            </button>
+          </div>
+
+          <!-- Topics List -->
+          <div>
+            <h4 class="text-sm font-semibold mb-3">Topics Mastery Checklist</h4>
+            <div class="details-topics-list" id="details-topics-list">
+              <!-- Dynamically Populated -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Universal Curriculum Helper / Browser Simulator Modal -->
+  <div class="modal-overlay" id="search-helper-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Syllabus Search Assistant</h3>
+        <button class="btn-close modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="text-sm text-muted mb-4">Search engines compile academic curricula directly. Type your university and course below to generate a search link, click it to open the directory page, and then copy and paste the contents back here.</p>
+        
+        <div class="form-group">
+          <label for="helper-uni">University Name</label>
+          <input type="text" id="helper-uni" class="form-input" placeholder="e.g. Harvard University">
+        </div>
+        
+        <div class="form-group mt-3">
+          <label for="helper-course">Course / Degree</label>
+          <input type="text" id="helper-course" class="form-input" placeholder="e.g. Mechanical Engineering Syllabus">
+        </div>
+
+        <button class="btn btn-primary w-full mt-6" id="execute-helper-search-btn">
+          Search Curriculum
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PWA Install Guide Modal for iOS Safari -->
+  <div class="modal-overlay" id="pwa-ios-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Install StudySmart on iOS</h3>
+        <button class="btn-close modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body text-center">
+        <div class="pwa-ios-logo mb-4">
+          <svg viewBox="0 0 512 512" width="80" height="80" class="mx-auto">
+            <circle cx="256" cy="256" r="240" fill="#8b5cf6" />
+            <polygon points="256,120 390,195 256,270 122,195" fill="#ffffff" />
+            <path d="M160,220 L160,270 C160,310 352,310 352,270 L352,220" fill="none" stroke="#ffffff" stroke-width="20" stroke-linecap="round" />
+          </svg>
+        </div>
+        <p class="mb-4">Follow these simple steps to install <strong>StudySmart</strong> on your iPhone or iPad:</p>
+        <div class="pwa-steps-list text-left max-width-sm mx-auto">
+          <div class="pwa-step">
+            <span class="step-num">1</span>
+            <span class="step-text">Open this app in the <strong>Safari</strong> browser.</span>
+          </div>
+          <div class="pwa-step">
+            <span class="step-num">2</span>
+            <span class="step-text">Tap the <strong>Share</strong> button <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" style="display:inline-block;vertical-align:middle;margin:0 4px;"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> at the bottom of the screen.</span>
+          </div>
+          <div class="pwa-step">
+            <span class="step-num">3</span>
+            <span class="step-text">Scroll down and tap <strong>Add to Home Screen</strong>.</span>
+          </div>
+        </div>
+        <button class="btn btn-primary w-full mt-6 modal-close-btn">Got It</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Premium Gate Modal -->
+  <div class="modal-overlay" id="premium-modal">
+    <div class="modal-card">
+      <div class="modal-header" style="border-bottom: none; padding-bottom: 0;">
+        <h3 class="modal-title" style="color: #f59e0b; display: flex; align-items: center; gap: 8px;">
+          <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          StudySmart Premium
+        </h3>
+        <button class="btn-close modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="text-sm text-muted mb-4 text-center">Unlock your full potential and support development.</p>
+        
+        <div class="premium-features-list mb-6" style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 12px; font-size: 14px;">
+          <ul style="list-style: none; padding: 0; margin: 0;">
+            <li style="margin-bottom: 8px;">✅ Unlimited Modules & Flashcards</li>
+            <li style="margin-bottom: 8px;">✅ PDF Notes Integration</li>
+            <li style="margin-bottom: 8px;">✅ Progress Analytics & Charts</li>
+            <li style="margin-bottom: 8px;">✅ Voice-to-Flashcard</li>
+            <li style="margin-bottom: 8px;">✅ Push Notifications</li>
+            <li>✅ Study Groups & Sharing</li>
+          </ul>
+        </div>
+
+        <div class="form-group mb-4">
+          <label>Already Premium? Enter License Key</label>
+          <div style="display: flex; gap: 10px;">
+            <input type="text" id="license-key-input" class="form-input" placeholder="e.g. KEY-12345">
+            <button class="btn btn-secondary" id="verify-license-btn">Verify</button>
+          </div>
+        </div>
+
+        <div style="text-align: center; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
+          <p class="text-sm mb-3">Get a license key for only <strong>NAD 50/month</strong></p>
+          <a href="#" class="btn btn-primary w-full" id="stripe-checkout-btn" target="_blank" style="display: inline-flex; justify-content: center; align-items: center; text-decoration: none;">
+            Get Premium Now
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Audio synthesizers for ambient noise (fallback if user is offline/lacks audio files) -->
+  <!-- We will programmatically synthesize audio elements in JS, avoiding hardcoded assets! -->
+
+  <!-- ==================== SECURITY OVERLAYS ==================== -->
+
+  <!-- PIN Setup Modal (first-run only) -->
+  <div class="security-overlay" id="setup-overlay" role="dialog" aria-modal="true" aria-labelledby="setup-title">
+    <div class="security-card">
+      <div class="security-logo">
+        <svg viewBox="0 0 24 24" width="40" height="40" stroke="#8b5cf6" stroke-width="2" fill="none">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+      </div>
+      <h2 class="security-title" id="setup-title">Protect Your Data</h2>
+      <p class="security-subtitle">Create a 4–8 digit PIN to encrypt your notes and study data. This PIN is stored only on your device — we never see it.</p>
+
+      <div class="pin-input-group">
+        <label for="setup-pin" class="pin-label">Create PIN</label>
+        <input type="password" id="setup-pin" class="pin-input" inputmode="numeric" pattern="[0-9]*" minlength="4" maxlength="8" placeholder="4–8 digits" autocomplete="new-password">
+      </div>
+      <div class="pin-input-group mt-3">
+        <label for="setup-pin-confirm" class="pin-label">Confirm PIN</label>
+        <input type="password" id="setup-pin-confirm" class="pin-input" inputmode="numeric" pattern="[0-9]*" minlength="4" maxlength="8" placeholder="Re-enter PIN" autocomplete="new-password">
+      </div>
+
+      <div class="security-error" id="setup-error" role="alert"></div>
+
+      <button class="btn btn-primary w-full mt-6" id="setup-confirm-btn">Set PIN &amp; Secure Data</button>
+
+      <p class="security-note mt-4">⚠️ If you forget your PIN, all encrypted data will be wiped. There is no recovery — by design.</p>
+    </div>
+  </div>
+
+  <!-- Lock Screen (shown on inactivity / app open) -->
+  <div class="security-overlay" id="lock-overlay" role="dialog" aria-modal="true" aria-labelledby="lock-title" style="display:none;">
+    <div class="security-card">
+      <div class="security-logo">
+        <svg viewBox="0 0 24 24" width="40" height="40" stroke="#8b5cf6" stroke-width="2" fill="none">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+      </div>
+      <h2 class="security-title" id="lock-title">StudySmart Locked</h2>
+      <p class="security-subtitle" id="lock-subtitle">Enter your PIN to continue.</p>
+
+      <div class="pin-dots" id="pin-dots" aria-hidden="true">
+        <span class="pin-dot" id="dot-0"></span>
+        <span class="pin-dot" id="dot-1"></span>
+        <span class="pin-dot" id="dot-2"></span>
+        <span class="pin-dot" id="dot-3"></span>
+      </div>
+
+      <div class="pin-input-group">
+        <label for="lock-pin" class="pin-label sr-only">Enter PIN</label>
+        <input type="password" id="lock-pin" class="pin-input" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="Enter PIN" autocomplete="current-password" autofocus>
+      </div>
+
+      <div class="security-error" id="lock-error" role="alert"></div>
+      <div class="lock-attempts-badge" id="lock-attempts-badge" style="display:none;"></div>
+
+      <button class="btn btn-primary w-full mt-4" id="unlock-btn">Unlock</button>
+    </div>
+  </div>
+
+  <script src="security.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
