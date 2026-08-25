@@ -1,22 +1,22 @@
 /**
  * ============================================================
- * STUDYSMART — PADDLE BILLING INTEGRATION
+ * STUDYSMART ï¿½ PADDLE BILLING INTEGRATION
  * paddle-integration.js
  * ============================================================
  *
- * DUMI — SETUP INSTRUCTIONS (5 minutes):
+ * DUMI ï¿½ SETUP INSTRUCTIONS (5 minutes):
  *
  *  1. Log in at vendors.paddle.com
  *
  *  2. Get your CLIENT-SIDE TOKEN:
  *     Developer Tools > Authentication > CLICK "Client-side tokens" TAB (next to API keys)
- *     Paste it below: PASTE_YOUR_CLIENT_TOKEN_HERE
+ *     Paste it below: live_300d87226e3d422715bb19ca597
  *
  *  3. Create your product:
  *     Catalog > Products > New Product
  *     Name: "StudySmart Premium"
  *     Billing: Recurring, Monthly, NAD 50
- *     Copy the Price ID (starts with "pri_") and paste: PASTE_YOUR_PRICE_ID_HERE
+ *     Copy the Price ID (starts with "pri_") and paste: pro_01m0w2m41zwpr52kby0ww8sb1f
  *
  *  4. Push to GitHub - done!
  *
