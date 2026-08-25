@@ -1,12 +1,14 @@
-const CACHE_NAME = 'studysmart-v2';
+const CACHE_NAME = 'studysmart-v3';
 const ASSETS = [
   './',
   './index.html',
   './style.css',
   './app.js',
   './security.js',
+  './paddle-integration.js',
   './icon.svg',
   './manifest.json'
+  // Note: paddle.js CDN is intentionally NOT cached — must load fresh for PCI compliance
 ];
 
 

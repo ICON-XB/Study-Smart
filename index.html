@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- Content Security Policy — blocks inline scripts/styles and external script sources -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'none';">
+  <!-- Content Security Policy — updated to allow Paddle payment SDK -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.paddle.com; style-src 'self' https://fonts.googleapis.com https://cdn.paddle.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://cdn.paddle.com https://paddle.s3.amazonaws.com; connect-src 'self' https://checkout.paddle.com https://vendors.paddle.com https://generativelanguage.googleapis.com; frame-src https://checkout.paddle.com;">
   <title>StudySmart - Exam Prep Organizer & Smart Scheduler</title>
   <!-- PWA Support -->
   <link rel="manifest" href="manifest.json">
@@ -975,10 +975,16 @@ Chapter 3: Integrals
         </div>
 
         <div style="text-align: center; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
-          <p class="text-sm mb-3">Get a license key for only <strong>NAD 50/month</strong></p>
-          <a href="#" class="btn btn-primary w-full" id="stripe-checkout-btn" target="_blank" style="display: inline-flex; justify-content: center; align-items: center; text-decoration: none;">
-            Get Premium Now
-          </a>
+          <p class="text-sm mb-3">Unlock everything for only <strong>NAD 50/month</strong></p>
+          <!-- Paddle Checkout Button -->
+          <!-- ⚠️  DUMI: Replace PADDLE_VENDOR_ID and PADDLE_PRODUCT_ID below with your real IDs -->
+          <button class="btn btn-primary w-full" id="paddle-checkout-btn"
+            data-paddle-vendor="PADDLE_VENDOR_ID"
+            data-paddle-product="PADDLE_PRODUCT_ID">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" style="margin-right:8px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            Get Premium — NAD 50/month
+          </button>
+          <p class="text-xs text-muted mt-3">Secure payment powered by Paddle. Cancel anytime.</p>
         </div>
       </div>
     </div>
@@ -1049,7 +1055,10 @@ Chapter 3: Integrals
     </div>
   </div>
 
+  <!-- Paddle Billing SDK (loads the checkout overlay) -->
+  <script src="https://cdn.paddle.com/paddle/paddle.js"></script>
   <script src="security.js"></script>
   <script src="app.js"></script>
+  <script src="paddle-integration.js"></script>
 </body>
 </html>
