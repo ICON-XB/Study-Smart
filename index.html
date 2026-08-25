@@ -977,10 +977,10 @@ Chapter 3: Integrals
         <div style="text-align: center; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
           <p class="text-sm mb-3">Unlock everything for only <strong>NAD 50/month</strong></p>
           <!-- Paddle Checkout Button -->
-          <!-- ⚠️  DUMI: Replace PADDLE_VENDOR_ID and PADDLE_PRODUCT_ID below with your real IDs -->
+          <!-- ⚠️  DUMI: Replace PADDLE_CLIENT_TOKEN and PADDLE_PRICE_ID below with your real IDs -->
           <button class="btn btn-primary w-full" id="paddle-checkout-btn"
-            data-paddle-vendor="PADDLE_VENDOR_ID"
-            data-paddle-product="PADDLE_PRODUCT_ID">
+            data-paddle-token="PADDLE_CLIENT_TOKEN"
+            data-paddle-price="PADDLE_PRICE_ID">
             <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" style="margin-right:8px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
             Get Premium — NAD 50/month
           </button>
@@ -1056,7 +1056,7 @@ Chapter 3: Integrals
   </div>
 
   <!-- Paddle Billing SDK (loads the checkout overlay) -->
-  <script src="https://cdn.paddle.com/paddle/paddle.js"></script>
+  <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
   <script src="security.js"></script>
   <script src="app.js"></script>
   <script src="paddle-integration.js"></script>

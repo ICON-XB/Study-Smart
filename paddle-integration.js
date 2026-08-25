@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * STUDYSMART — PADDLE PAYMENT INTEGRATION
+ * STUDYSMART — PADDLE BILLING INTEGRATION
  * paddle-integration.js
  * ============================================================
  *
@@ -8,20 +8,17 @@
  *
  *  1. Log in at vendors.paddle.com
  *
- *  2. Get your VENDOR ID:
- *     Developer Tools > Authentication > Vendor ID
- *     Paste it below: PASTE_YOUR_VENDOR_ID_HERE
+ *  2. Get your CLIENT-SIDE TOKEN:
+ *     Developer Tools > Authentication > CLICK "Client-side tokens" TAB (next to API keys)
+ *     Paste it below: PASTE_YOUR_CLIENT_TOKEN_HERE
  *
  *  3. Create your product:
  *     Catalog > Products > New Product
  *     Name: "StudySmart Premium"
  *     Billing: Recurring, Monthly, NAD 50
- *     Copy the Product ID and paste: PASTE_YOUR_PRODUCT_ID_HERE
+ *     Copy the Price ID (starts with "pri_") and paste: PASTE_YOUR_PRICE_ID_HERE
  *
- *  4. In Paddle: Checkout > Checkout Settings > Default Success URL
- *     Set to: https://icon-xb.github.io/Study-Smart
- *
- *  5. Push to GitHub - done!
+ *  4. Push to GitHub - done!
  *
  * ============================================================
  */
@@ -32,9 +29,9 @@
 // DUMI: REPLACE THESE TWO VALUES WITH YOUR REAL IDs
 // ============================================================
 const PADDLE_CONFIG = {
-  vendorId:    'PASTE_YOUR_VENDOR_ID_HERE',   // e.g. 12345
-  productId:   'PASTE_YOUR_PRODUCT_ID_HERE',  // e.g. 678901
-  environment: 'production',                  // change to 'sandbox' for testing
+  clientToken: 'PASTE_YOUR_CLIENT_TOKEN_HERE', // e.g. test_ct_... or live_ct_...
+  priceId:     'PASTE_YOUR_PRICE_ID_HERE',     // e.g. pri_01j...
+  environment: 'production',                   // change to 'sandbox' for testing
 };
 // ============================================================
 
@@ -44,14 +41,12 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
-  if (PADDLE_CONFIG.environment === 'sandbox') {
-    Paddle.Environment.set('sandbox');
-  }
+  Paddle.Environment.set(PADDLE_CONFIG.environment);
 
-  Paddle.Setup({
-    vendor: parseInt(PADDLE_CONFIG.vendorId, 10),
+  Paddle.Initialize({
+    token: PADDLE_CONFIG.clientToken,
     eventCallback: function (data) {
-      if (data.event === 'Checkout.Complete' || data.event === 'checkout.completed') {
+      if (data.name === 'checkout.completed') {
         _handlePremiumUnlock(data);
       }
     }
@@ -68,20 +63,15 @@ function _openPaddleCheckout() {
     alert('Payment system unavailable. Please check your connection.');
     return;
   }
-  if (PADDLE_CONFIG.vendorId === 'PASTE_YOUR_VENDOR_ID_HERE' ||
-      PADDLE_CONFIG.productId === 'PASTE_YOUR_PRODUCT_ID_HERE') {
-    alert('Payment not configured yet. Dumi: add your Paddle Vendor ID and Product ID to paddle-integration.js');
+  if (PADDLE_CONFIG.clientToken === 'PASTE_YOUR_CLIENT_TOKEN_HERE' ||
+      PADDLE_CONFIG.priceId === 'PASTE_YOUR_PRICE_ID_HERE') {
+    alert('Payment not configured yet. Dumi: add your Paddle Client-side token and Price ID to paddle-integration.js');
     return;
   }
   Paddle.Checkout.open({
-    product: PADDLE_CONFIG.productId,
-    title: 'StudySmart Premium',
-    message: 'Unlimited modules, Jarvis AI, PDF notes, analytics and more.',
-    quantity: 1,
-    email: window._userEmail || '',
-    successCallback: _handlePremiumUnlock,
-    closeCallback: function () {
-      console.log('[Paddle] Checkout closed.');
+    items: [{ priceId: PADDLE_CONFIG.priceId, quantity: 1 }],
+    customData: {
+      app: 'StudySmart'
     }
   });
 }
