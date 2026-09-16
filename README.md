@@ -1,10 +1,10 @@
-# StudySmart 📚 — AI Exam Architect
+# StudySmart — AI Exam Architect
 
 A beautiful, secure, freemium PWA study organiser built for Namibian university students.
 
 ## Features
 
-### 🆓 Free Tier
+### Free Tier
 - Up to **5 modules** and **60 flashcards**
 - Smart Curriculum Importer (NUST, UNAM, IUM + top African universities)
 - Smart Study Scheduler (exam-proximity, difficulty, even-distribution)
@@ -13,7 +13,7 @@ A beautiful, secure, freemium PWA study organiser built for Namibian university 
 - PIN-secured AES-256 encrypted local storage
 - Works fully offline as a PWA (installable on iOS, Android, Windows)
 
-### 👑 Premium (NAD 50/month)
+### Premium (NAD 50/month)
 - Unlimited modules & flashcards
 - **Jarvis AI Assistant** (powered by Google Gemini)
 - PDF Notes per module
