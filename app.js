@@ -110,6 +110,7 @@ const MOCK_FLASHCARDS = [
 // Load application state
 async function loadState() {
   try {
+    appState.schemaVersion = await SecureStore.load('StudySmart_SchemaVersion') || 1;
     appState.modules = await SecureStore.load(STORE_KEYS.MODULES) || [];
     appState.flashcards = await SecureStore.load(STORE_KEYS.FLASHCARDS) || [];
     appState.sessions = await SecureStore.load(STORE_KEYS.SESSIONS) || [];
@@ -122,6 +123,26 @@ async function loadState() {
     };
     appState.schedule = await SecureStore.load(STORE_KEYS.SCHEDULE) || [];
     
+    // Schema Migrations
+    if (appState.schemaVersion < 2) {
+      console.log('Migrating schema to v2: Universities & Profiles');
+      appState.universities = await SecureStore.load('StudySmart_Universities') || [];
+      appState.schemaVersion = 2;
+    } else {
+      appState.universities = await SecureStore.load('StudySmart_Universities') || [];
+    }
+
+    if (appState.schemaVersion < 3) {
+      console.log('Migrating schema to v3: Documents, Assessments & Sources');
+      appState.documents = await SecureStore.load('StudySmart_Documents') || [];
+      appState.assessments = await SecureStore.load('StudySmart_Assessments') || [];
+      appState.schemaVersion = 3;
+      await saveState(); // Idempotent save
+    } else {
+      appState.documents = await SecureStore.load('StudySmart_Documents') || [];
+      appState.assessments = await SecureStore.load('StudySmart_Assessments') || [];
+    }
+    
     // Seed mock data if completely empty
     if (appState.modules.length === 0) {
       appState.modules = MOCK_MODULES;
@@ -129,6 +150,7 @@ async function loadState() {
       await saveState();
     }
   } catch (e) {
+
     console.error('Error loading state from SecureStore:', e);
   }
 }

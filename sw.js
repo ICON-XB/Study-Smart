@@ -1,6 +1,7 @@
-const CACHE_NAME = 'studysmart-v3';
+const CACHE_NAME = 'studysmart-v4';
 const ASSETS = [
   './',
+  './app.html',
   './index.html',
   './style.css',
   './app.js',

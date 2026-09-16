@@ -1,8 +1,16 @@
-# StudySmart — AI Exam Architect
+# Study-Smart Vision
+*See it. Understand it. Master it.*
 
-A beautiful, secure, freemium PWA study organiser built for Namibian university students.
+Study-Smart Vision is an offline-first intelligent study system that turns physical learning material into adaptive study plans. Built for the **OpenCV AI Competition 2026**.
+
+## The Vision
+We transform the camera from a simple capture tool into an input device for an intelligent study agent. Using **OpenCV 5** running locally in the browser, the system assesses image quality, corrects perspective, and optimizes bandwidth. An Agentic loop then evaluates the data, extracts learning concepts via an **AWS serverless backend**, and automatically generates flashcards and updates study schedules.
 
 ## Features
+- **Local Preprocessing:** OpenCV.js handles blur detection, contour detection, and perspective correction locally.
+- **Agentic Vision:** A continuous Perceive -> Decide -> Act loop ensures only high-quality scans are processed, reducing cloud costs and API errors.
+- **Privacy First:** AES-GCM local encryption. Cloud images are stored in ephemeral S3 buckets with aggressive deletion policies.
+- **Low-Bandwidth Optimized:** Built as a PWA with local OpenCV cropping to minimize payload sizes for users in emerging markets (e.g., Namibia).
 
 ### Free Tier
 - Up to **5 modules** and **60 flashcards**
@@ -22,37 +30,32 @@ A beautiful, secure, freemium PWA study organiser built for Namibian university 
 - Voice-to-Flashcard
 - Study Group sharing
 
+## Documentation
+- [Architecture](docs/architecture.md)
+- [Agentic Vision Loop](docs/agentic-vision.md)
+- [Privacy Policy](docs/privacy.md)
+- [Evaluation](docs/evaluation.md)
+- [Demo Script](docs/demo-script.md)
+
+## AWS Deployment
+The backend uses AWS API Gateway, Lambda, and S3. See the aws/ directory for the SAM template.
+
 ## Getting Started
+1. Serve the project locally (e.g., python -m http.server).
+2. Navigate to the app in your browser.
+3. Use the "Smart Scan" tab to start the OpenCV agent loop.
 
-1. Open `index.html` in any modern browser (Chrome, Safari, Edge, Firefox)
-2. Create your security PIN on first launch
-3. Add your study modules and let the scheduler do the rest!
+## Global University Support
+Study-Smart Vision is designed for students worldwide. Namibia remains its origin. Presets exist for convenience across all continents. Any university can be manually added. Smart Scan and "Build My Semester" can derive academic structure from student-provided materials with user confirmation.
 
-### Jarvis AI Setup (Premium)
-1. Get a free Gemini API key from [Google AI Studio](https://aistudio.google.com/)
-2. Go to the **Jarvis AI** tab in the app
-3. Enter and save your key — it is stored encrypted on your device
+## Build My Semester
+Students can upload multiple documents (e.g., syllabus, notes). The system processes them sequentially using OpenCV, tracks performance metrics, and extracts a proposed academic structure (Modules, Assessments). It requests explicit confirmation for any low-confidence data before transactionally committing the semester to the offline database.
 
-## Tech Stack
+## Public Landing Page & Routing Architecture
+To provide a professional entry point for students and OpenCV competition judges without breaking local storage or PWA scope:
+- The public marketing gateway lives at /index.html.
+- The actual Study-Smart application lives at /app.html.
+- If an existing user opens their installed PWA while offline, the application safely routes them to /app.html via detection in index.html or loads /app.html directly based on the updated manifest.json start URL.
 
-- **Pure HTML / CSS / JavaScript** — no build tools needed
-- **Web Crypto API** — AES-GCM 256-bit encryption, PBKDF2-SHA-256 PIN hashing
-- **Service Worker** — full offline support
-- **Google Gemini API** — AI study assistant
-- **PWA** — installable, fast, works offline
-
-## Deployment
-
-### GitHub Pages (Free)
-1. Push this repo to GitHub
-2. Go to **Settings → Pages → Source → main branch / root**
-3. Your app will be live at `https://yourusername.github.io/studysmart`
-
-### Stripe Integration (for Premium)
-1. Create a [Stripe](https://stripe.com) account
-2. Create a Payment Link product at **NAD 50/month**
-3. Paste the URL into the `href` of `#stripe-checkout-btn` in `index.html`
-
-## License
-
-MIT — free to use and modify. Attribution appreciated.
+## PWA Installation
+Study-Smart fully supports PWA installation. The landing page handles the beforeinstallprompt event programmaticly on Android/Chromium, and displays fallback UI instructions for iOS Safari.
