@@ -1,66 +1,57 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Study-Smart Vision Serverless Backend (OpenCV AI Competition 2026)
+Description: >
+  Study-Smart premium entitlements. Verifies Paddle Billing webhooks and
+  answers "does this install have premium?" for the PWA. NOT DEPLOYED -
+  see RELEASE_CHECKLIST.md. (The earlier mock AI extraction endpoint was
+  removed: it returned fabricated results and was never called by the app.)
 
 Parameters:
   Environment:
     Type: String
     Default: dev
     AllowedValues: [dev, prod]
+  AllowedOrigin:
+    Type: String
+    Default: https://icon-xb.github.io
+    Description: Origin of the hosted PWA (scheme + host, no path)
+  PaddleSecretArn:
+    Type: String
+    Description: >
+      ARN of a Secrets Manager secret whose SecretString is
+      {"webhookSecret": "<Paddle notification destination secret key>"}
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Architectures: [arm64]
+    Timeout: 10
+    MemorySize: 256
+    CodeUri: src/
+    Environment:
+      Variables:
+        TABLE_NAME: !Ref EntitlementsTable
 
 Resources:
-  # Temporary S3 Bucket for image uploads before extraction
-  # Privacy-first: Auto-delete objects after 1 day
-  StudySmartVisionBucket:
-    Type: AWS::S3::Bucket
+  EntitlementsTable:
+    Type: AWS::DynamoDB::Table
     Properties:
-      BucketName: !Sub 'studysmart-vision-upload-\-\-\'
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
-      BucketEncryption:
-        ServerSideEncryptionConfiguration:
-          - ServerSideEncryptionByDefault:
-              SSEAlgorithm: AES256
-      LifecycleConfiguration:
-        Rules:
-          - Id: AutoDeleteTempImages
-            Status: Enabled
-            ExpirationInDays: 1
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expires
+        Enabled: true
+      SSESpecification:
+        SSEEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
 
-  # Agentic Vision Processing Lambda
-  VisionAgentFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: src/
-      Handler: agent_handler.lambda_handler
-      Runtime: python3.11
-      Timeout: 30
-      MemorySize: 1024
-      Policies:
-        - S3ReadPolicy:
-            BucketName: !Ref StudySmartVisionBucket
-        - Statement:
-            - Effect: Allow
-              Action:
-                - bedrock:InvokeModel
-              Resource: "*"
-      Environment:
-        Variables:
-          S3_BUCKET: !Ref StudySmartVisionBucket
-          ENVIRONMENT: !Ref Environment
-          LOG_LEVEL: INFO
-      Events:
-        ExtractApi:
-          Type: Api
-          Properties:
-            Path: /extract
-            Method: post
-
-  # API Gateway Logs for Observability
-  ApiGatewayApi:
+  BillingApi:
     Type: AWS::Serverless::Api
     Properties:
       StageName: !Ref Environment
@@ -68,10 +59,86 @@ Resources:
       MethodSettings:
         - ResourcePath: "/*"
           HttpMethod: "*"
-          LoggingLevel: INFO
           MetricsEnabled: true
+          ThrottlingRateLimit: 10
+          ThrottlingBurstLimit: 20
+      Cors:
+        AllowOrigin: !Sub "'${AllowedOrigin}'"
+        AllowMethods: "'GET,OPTIONS'"
+        AllowHeaders: "'Content-Type'"
+
+  PaddleWebhookFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: paddle_billing.webhook_handler
+      Environment:
+        Variables:
+          PADDLE_SECRET_ARN: !Ref PaddleSecretArn
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref EntitlementsTable
+        - Statement:
+            - Effect: Allow
+              Action: secretsmanager:GetSecretValue
+              Resource: !Ref PaddleSecretArn
+      Events:
+        Webhook:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BillingApi
+            Path: /paddle/webhook
+            Method: post
+
+  EntitlementFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: paddle_billing.entitlement_handler
+      Environment:
+        Variables:
+          ALLOWED_ORIGIN: !Ref AllowedOrigin
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref EntitlementsTable
+      Events:
+        Entitlement:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BillingApi
+            Path: /entitlement
+            Method: get
+
+  PaddleWebhookLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${PaddleWebhookFunction}
+      RetentionInDays: 30
+
+  EntitlementLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${EntitlementFunction}
+      RetentionInDays: 30
+
+  WebhookErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Paddle webhook function errors (payments may not be activating premium)
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref PaddleWebhookFunction
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
 
 Outputs:
-  VisionApiUrl:
-    Description: "API Gateway endpoint URL for Study-Smart Vision"
-    Value: !Sub "https://\.execute-api.\.amazonaws.com/\/extract"
+  PaddleWebhookUrl:
+    Description: Register this URL as the Paddle notification destination
+    Value: !Sub "https://${BillingApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/paddle/webhook"
+  EntitlementUrl:
+    Description: Put this URL in paddle-integration.js (PADDLE_CONFIG.entitlementUrl)
+    Value: !Sub "https://${BillingApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/entitlement"

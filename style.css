@@ -1724,3 +1724,9 @@ body {
   white-space: nowrap;
   border: 0;
 }
+
+/* Launch fixes: sidebar legal links */
+.sidebar-legal a { color: var(--color-text-muted); text-decoration: none; }
+.sidebar-legal a:hover, .sidebar-legal a:focus-visible { text-decoration: underline; }
+@font-face { font-family: 'Inter'; font-style: normal; font-weight: 400; font-display: swap; src: url('./fonts/Inter-Regular.ttf') format('truetype'); } @font-face { font-family: 'Inter'; font-style: normal; font-weight: 500; font-display: swap; src: url('./fonts/Inter-Medium.ttf') format('truetype'); } @font-face { font-family: 'Inter'; font-style: normal; font-weight: 600; font-display: swap; src: url('./fonts/Inter-SemiBold.ttf') format('truetype'); }
+@font-face { font-family: 'Inter'; font-style: normal; font-weight: 700; font-display: swap; src: url('./fonts/Inter-Bold.ttf') format('truetype'); }

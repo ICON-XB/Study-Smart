@@ -143,12 +143,7 @@ async function loadState() {
       appState.assessments = await SecureStore.load('StudySmart_Assessments') || [];
     }
     
-    // Seed mock data if completely empty
-    if (appState.modules.length === 0) {
-      appState.modules = MOCK_MODULES;
-      appState.flashcards = MOCK_FLASHCARDS;
-      await saveState();
-    }
+    normaliseState(appState);
   } catch (e) {
 
     console.error('Error loading state from SecureStore:', e);
@@ -156,12 +151,148 @@ async function loadState() {
 }
 
 async function saveState() {
+  if (typeof Security !== 'undefined' && !Security.canEncrypt()) {
+    console.warn('[Storage] App is locked; changes will be saved after unlocking.');
+    pendingSave = true;
+    return;
+  }
   await SecureStore.save(STORE_KEYS.MODULES, appState.modules);
   await SecureStore.save(STORE_KEYS.FLASHCARDS, appState.flashcards);
   await SecureStore.save(STORE_KEYS.SESSIONS, appState.sessions);
   await SecureStore.save(STORE_KEYS.STREAK, appState.streak);
   await SecureStore.save(STORE_KEYS.SETTINGS, appState.settings);
   await SecureStore.save(STORE_KEYS.SCHEDULE, appState.schedule);
+  // These were loaded but previously never saved, so they were lost on reload.
+  await SecureStore.save('StudySmart_Universities', appState.universities || []);
+  await SecureStore.save('StudySmart_Documents', appState.documents || []);
+  await SecureStore.save('StudySmart_Assessments', appState.assessments || []);
+  await SecureStore.save('StudySmart_SchemaVersion', appState.schemaVersion || 3);
+  pendingSave = false;
+}
+let pendingSave = false;
+
+// ==========================================
+// DATA VALIDATION (backups, AI output and older versions are untrusted)
+// ==========================================
+const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const clip = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
+const safeId = (v, prefix) => (typeof v === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(v) ? v : prefix + Math.random().toString(36).slice(2, 11));
+
+function normaliseModule(m) {
+  if (!m || typeof m !== 'object') return null;
+  return {
+    id: safeId(m.id, 'mod_'),
+    code: clip(m.code, 20) || 'MOD',
+    name: clip(m.name, 120) || 'Untitled module',
+    examDate: typeof m.examDate === 'string' && ISO_DATE.test(m.examDate) ? m.examDate : '',
+    difficulty: ['easy', 'medium', 'hard'].includes(m.difficulty) ? m.difficulty : 'medium',
+    color: typeof m.color === 'string' && HEX_COLOR.test(m.color) ? m.color : '#8b5cf6',
+    topics: (Array.isArray(m.topics) ? m.topics : []).slice(0, 200).map(t => ({
+      id: safeId(t && t.id, 'top_'),
+      name: clip(t && t.name, 200) || 'Topic',
+      state: ['not-started', 'reviewing', 'mastered'].includes(t && t.state) ? t.state : 'not-started',
+    })),
+    ...(m.sourceRef && typeof m.sourceRef === 'object' ? { sourceRef: m.sourceRef } : {}),
+  };
+}
+
+function normaliseFlashcard(c) {
+  if (!c || typeof c !== 'object') return null;
+  const box = Number.isInteger(c.box) && c.box >= 1 && c.box <= 5 ? c.box : 1;
+  return {
+    id: safeId(c.id, 'c_'),
+    moduleId: typeof c.moduleId === 'string' ? c.moduleId.slice(0, 64) : '',
+    front: clip(c.front, 1000),
+    back: clip(c.back, 2000),
+    box,
+    nextReviewDate: typeof c.nextReviewDate === 'string' && ISO_DATE.test(c.nextReviewDate)
+      ? c.nextReviewDate : new Date().toISOString().split('T')[0],
+    ...(c.aiGenerated === true ? { aiGenerated: true } : {}),
+  };
+}
+
+/** Fixes up state loaded from storage or a backup so rendering never breaks. */
+function normaliseState(state) {
+  state.modules = (Array.isArray(state.modules) ? state.modules : []).map(normaliseModule).filter(Boolean);
+  state.flashcards = (Array.isArray(state.flashcards) ? state.flashcards : []).map(normaliseFlashcard).filter(Boolean)
+    .filter(c => c.front && c.back);
+  state.sessions = Array.isArray(state.sessions) ? state.sessions.filter(x => x && typeof x === 'object') : [];
+  state.schedule = Array.isArray(state.schedule) ? state.schedule.filter(x => x && typeof x === 'object').map(x => ({
+    ...x,
+    moduleColor: typeof x.moduleColor === 'string' && HEX_COLOR.test(x.moduleColor) ? x.moduleColor : '#8b5cf6',
+  })) : [];
+  state.documents = Array.isArray(state.documents) ? state.documents.filter(x => x && typeof x === 'object') : [];
+  state.assessments = Array.isArray(state.assessments) ? state.assessments.filter(x => x && typeof x === 'object').map(a => ({
+    id: safeId(a.id, 'as_'),
+    moduleId: typeof a.moduleId === 'string' ? a.moduleId.slice(0, 64) : '',
+    name: clip(a.name, 80),
+    date: typeof a.date === 'string' && ISO_DATE.test(a.date) ? a.date : '',
+    ...(a.aiSuggested === true ? { aiSuggested: true } : {}),
+  })) : [];
+  state.universities = Array.isArray(state.universities) ? state.universities : [];
+  if (!state.streak || typeof state.streak !== 'object') state.streak = { count: 0, lastStudyDate: '' };
+  if (!state.settings || typeof state.settings !== 'object') {
+    state.settings = { weekdayHours: 3, weekendHours: 5, startDate: new Date().toISOString().split('T')[0], prioritizeBy: 'exam-proximity' };
+  }
+  delete state.isPremium; // premium is never read from stored/imported data
+  return state;
+}
+
+/** Builds a backup without secrets (the Gemini key) or purchase state. */
+function buildExport() {
+  const settings = { ...appState.settings };
+  delete settings.geminiKey;
+  delete settings.aiConsent;
+  return {
+    app: 'Study-Smart',
+    exportVersion: 2,
+    exportedAt: new Date().toISOString(),
+    modules: appState.modules,
+    flashcards: appState.flashcards,
+    sessions: appState.sessions,
+    streak: appState.streak,
+    settings,
+    schedule: appState.schedule,
+    documents: appState.documents,
+    assessments: appState.assessments,
+    universities: appState.universities,
+  };
+}
+
+/** Validates an imported backup. Returns a clean state object or null. */
+function parseImport(data) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+  if (!Array.isArray(data.modules) || !Array.isArray(data.flashcards)) return null;
+  const clean = normaliseState({
+    modules: data.modules,
+    flashcards: data.flashcards,
+    sessions: data.sessions,
+    streak: data.streak,
+    settings: data.settings && typeof data.settings === 'object' ? {
+      weekdayHours: Number.isFinite(+data.settings.weekdayHours) ? Math.min(24, Math.max(0, +data.settings.weekdayHours)) : 3,
+      weekendHours: Number.isFinite(+data.settings.weekendHours) ? Math.min(24, Math.max(0, +data.settings.weekendHours)) : 5,
+      startDate: ISO_DATE.test(data.settings.startDate || '') ? data.settings.startDate : new Date().toISOString().split('T')[0],
+      prioritizeBy: clip(data.settings.prioritizeBy, 40) || 'exam-proximity',
+    } : undefined,
+    schedule: data.schedule,
+    documents: data.documents,
+    assessments: data.assessments,
+    universities: data.universities,
+  });
+  return clean;
+}
+
+/** Example modules a new user can load on purpose (never loaded automatically). */
+async function loadExampleData() {
+  appState.modules = MOCK_MODULES.map(m => ({ ...m, name: m.name + ' (example)' }));
+  const today = new Date().toISOString().split('T')[0];
+  appState.flashcards = MOCK_FLASHCARDS.map(c => ({ ...c, nextReviewDate: today }));
+  await saveState();
+  renderModules();
+  renderDashboard();
+  renderFlashcardStats();
+  initPomodoroSelects();
 }
 
 // ==========================================
@@ -926,9 +1057,20 @@ let pomodoroTimer = {
 // ==========================================
 // APP INITIALIZATION (Triggered by security.js)
 // ==========================================
+let appInitialized = false;
 window.onAppUnlocked = async () => {
+  if (appInitialized) {
+    // Re-unlock after an automatic lock: state is still in memory; do not
+    // register event listeners a second time (that caused duplicate saves).
+    if (pendingSave) await saveState();
+    renderDashboard();
+    return;
+  }
+  appInitialized = true;
   await loadState();
   setupEventListeners();
+  setupSettingsPane();
+  applyBillingState();
   renderDate();
   renderDashboard();
   renderModules();
@@ -977,6 +1119,9 @@ function switchTab(tabId) {
     resetActiveRecallSession();
   }
   
+  if (tabId !== 'smartscan' && typeof stopCamera === 'function') stopCamera();
+  if (tabId === 'settings') refreshSettingsPane();
+
   // Mobile sidebar close on click
   UI.sidebar.classList.remove('active');
 }
@@ -992,8 +1137,11 @@ function renderModules() {
       <div class="empty-state cols-span-3">
         <h3>No Modules Found</h3>
         <p>You haven't added any courses yet. Get started by typing or importing them using the Curriculum Importer!</p>
+        <button class="btn btn-secondary btn-sm mt-3" id="load-example-btn" type="button">Try with example modules</button>
       </div>
     `;
+    const exampleBtn = document.getElementById('load-example-btn');
+    if (exampleBtn) exampleBtn.addEventListener('click', loadExampleData);
     return;
   }
   
@@ -1143,7 +1291,7 @@ function renderDashboard() {
       row.className = `agenda-item ${item.completed ? 'completed' : ''}`;
       row.innerHTML = `
         <div class="agenda-item-left">
-          <div class="agenda-color-dot" style="background:${item.moduleColor || '#8b5cf6'}"></div>
+          <div class="agenda-color-dot" style="background:${HEX_COLOR.test(item.moduleColor || '') ? item.moduleColor : '#8b5cf6'}"></div>
           <div class="agenda-item-text">
             <span class="agenda-topic-name">${san(item.topicName)}</span>
             <span class="agenda-module-code">${san(item.moduleCode)}</span>
@@ -1349,9 +1497,8 @@ function renderFlashcardStats() {
   UI.deckSelectModal.innerHTML = '';
   
   appState.modules.forEach(m => {
-    const opt = `<option value="${m.id}">${m.code} - ${m.name}</option>`;
-    UI.deckSelect.innerHTML += opt;
-    UI.deckSelectModal.innerHTML += opt;
+    UI.deckSelect.appendChild(new Option(`${m.code} - ${m.name}`, m.id));
+    UI.deckSelectModal.appendChild(new Option(`${m.code} - ${m.name}`, m.id));
   });
   
   updateFlashcardBoxCounts();
@@ -1470,7 +1617,7 @@ function submitRecallRating(isSuccess) {
 function initPomodoroSelects() {
   UI.pomoModuleSelect.innerHTML = '<option value="">-- General Study --</option>';
   appState.modules.forEach(m => {
-    UI.pomoModuleSelect.innerHTML += `<option value="${m.id}">${m.code}</option>`;
+    UI.pomoModuleSelect.appendChild(new Option(m.code, m.id));
   });
   
   // Render total logs
@@ -1494,7 +1641,7 @@ function handlePomoModuleChange() {
   const module = appState.modules.find(m => m.id === mId);
   if (module && module.topics.length > 0) {
     module.topics.forEach(t => {
-      UI.pomoTopicSelect.innerHTML += `<option value="${t.id}">${t.name}</option>`;
+      UI.pomoTopicSelect.appendChild(new Option(t.name, t.id));
     });
     UI.pomoTopicSelect.removeAttribute('disabled');
   } else {
@@ -1934,7 +2081,7 @@ function setupEventListeners() {
   // Add Module Modal trigger
   document.getElementById('add-module-modal-btn').addEventListener('click', () => {
     // FREEMIUM GATE: Limit free users to 5 modules
-    if (!appState.isPremium && appState.modules.length >= 5) {
+    if (premiumGateActive() && appState.modules.length >= FREE_LIMITS.modules) {
       document.getElementById('premium-modal').classList.add('active');
       return;
     }
@@ -1945,7 +2092,7 @@ function setupEventListeners() {
     UI.moduleModal.classList.add('active');
   });
 
-  // Premium Upgrade / Google Sign In Stubs
+  // Premium upgrade (only shown when billing is configured)
   const premiumBtn = document.getElementById('premium-upgrade-btn');
   if (premiumBtn) {
     premiumBtn.addEventListener('click', () => {
@@ -1953,29 +2100,6 @@ function setupEventListeners() {
     });
   }
 
-  const googleSignIn = document.getElementById('google-signin-stub');
-  if (googleSignIn) {
-    googleSignIn.addEventListener('click', (e) => {
-      e.preventDefault();
-      alert('Google Sign-In integration would open here. (Placeholder for GitHub push)');
-    });
-  }
-
-  const verifyLicense = document.getElementById('verify-license-btn');
-  if (verifyLicense) {
-    verifyLicense.addEventListener('click', async () => {
-      const key = document.getElementById('license-key-input').value.trim();
-      if (key === 'PREMIUM-TEST') {
-        appState.isPremium = true;
-        await saveState();
-        alert('Premium unlocked! Thank you for your support.');
-        document.getElementById('premium-modal').classList.remove('active');
-      } else {
-        alert('Invalid license key.');
-      }
-    });
-  }
-  
   // Jarvis AI Assistant Handlers
   if (UI.jarvisSendBtn) {
     UI.jarvisSendBtn.addEventListener('click', handleJarvisChat);
@@ -1990,13 +2114,16 @@ function setupEventListeners() {
   if (UI.saveGeminiKeyBtn) {
     UI.saveGeminiKeyBtn.addEventListener('click', async () => {
       const key = UI.geminiApiKey.value.trim();
-      if (key) {
-        appState.settings.geminiKey = key;
-        await saveState();
-        UI.geminiApiKey.value = '';
-        UI.geminiApiKey.placeholder = 'Key saved securely';
-        UI.jarvisStatusBadge.textContent = 'API Key Active';
+      if (!/^[A-Za-z0-9_-]{20,100}$/.test(key)) {
+        alert('That does not look like a Gemini API key. Copy it again from Google AI Studio.');
+        return;
       }
+      appState.settings.geminiKey = key;
+      await saveState();
+      UI.geminiApiKey.value = '';
+      UI.geminiApiKey.placeholder = 'Key saved (encrypted on this device)';
+      UI.jarvisStatusBadge.textContent = 'API Key Saved';
+      refreshSettingsPane();
     });
   }
   
@@ -2124,7 +2251,7 @@ function setupEventListeners() {
   // Add Flashcard Modal Trigger
   document.getElementById('add-flashcard-modal-btn').addEventListener('click', () => {
     // FREEMIUM GATE: Limit free users to 60 flashcards
-    if (!appState.isPremium && appState.flashcards.length >= 60) {
+    if (premiumGateActive() && appState.flashcards.length >= FREE_LIMITS.flashcards) {
       document.getElementById('premium-modal').classList.add('active');
       return;
     }
@@ -2134,7 +2261,7 @@ function setupEventListeners() {
     }
     UI.deckSelectModal.innerHTML = '';
     appState.modules.forEach(m => {
-      UI.deckSelectModal.innerHTML += `<option value="${m.id}">${m.code} - ${m.name}</option>`;
+      UI.deckSelectModal.appendChild(new Option(`${m.code} - ${m.name}`, m.id));
     });
     UI.flashcardModal.classList.add('active');
   });
@@ -2174,44 +2301,59 @@ function setupEventListeners() {
   
   UI.pomoModuleSelect.addEventListener('change', handlePomoModuleChange);
   
-  // Backup Restore JSON actions
-  document.getElementById('export-data-btn').addEventListener('click', () => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appState, null, 2));
-    const dlAnchorElem = document.createElement('a');
-    dlAnchorElem.setAttribute("href", dataStr);
-    dlAnchorElem.setAttribute("download", `studysmart-backup-${new Date().toISOString().split('T')[0]}.json`);
-    dlAnchorElem.click();
-  });
-  
-  document.getElementById('import-data-btn').addEventListener('click', () => {
-    document.getElementById('backup-file-input').click();
-  });
-  
+  // Backup Restore JSON actions (backups never contain the Gemini key)
+  const exportBackup = () => {
+    const blob = new Blob([JSON.stringify(buildExport(), null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `studysmart-backup-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  document.getElementById('export-data-btn').addEventListener('click', exportBackup);
+  const settingsExport = document.getElementById('settings-export-btn');
+  if (settingsExport) settingsExport.addEventListener('click', exportBackup);
+
+  const openImport = () => document.getElementById('backup-file-input').click();
+  document.getElementById('import-data-btn').addEventListener('click', openImport);
+  const settingsImport = document.getElementById('settings-import-btn');
+  if (settingsImport) settingsImport.addEventListener('click', openImport);
+
   document.getElementById('backup-file-input').addEventListener('change', (e) => {
     const file = e.target.files[0];
+    e.target.value = '';
     if (!file) return;
-    
+    if (file.size > 5 * 1024 * 1024) {
+      alert('That backup file is too large (over 5 MB).');
+      return;
+    }
     const reader = new FileReader();
-    reader.onload = function(evt) {
+    reader.onload = async function(evt) {
+      let importedData;
       try {
-        const importedData = JSON.parse(evt.target.result);
-        
-        // Basic validation
-        if (importedData.modules && importedData.flashcards) {
-          appState = importedData;
-          saveState();
-          alert("Backup successfully restored! App will reload.");
-          window.location.reload();
-        } else {
-          alert("Invalid backup file structure.");
-        }
+        importedData = JSON.parse(evt.target.result);
       } catch (err) {
-        alert("Failed to parse JSON file.");
+        alert("Failed to read the backup: it is not valid JSON.");
+        return;
       }
+      const clean = parseImport(importedData);
+      if (!clean) {
+        alert("Invalid backup file structure.");
+        return;
+      }
+      if (!confirm('Replace the study data on this device with this backup? Your Gemini key and PIN stay as they are.')) return;
+      const keep = { geminiKey: appState.settings.geminiKey, aiConsent: appState.settings.aiConsent };
+      appState = { ...appState, ...clean, settings: { ...clean.settings, ...keep }, schemaVersion: 3 };
+      await saveState();
+      alert("Backup restored. The app will reload.");
+      window.location.reload();
     };
     reader.readAsText(file);
   });
-  
+
   // PWA Prompt Installation Setup
   let deferredPrompt;
   window.addEventListener('beforeinstallprompt', (e) => {
@@ -2255,48 +2397,37 @@ function setupEventListeners() {
 // JARVIS AI LOGIC
 // ==========================================
 async function handleJarvisChat() {
-  const text = UI.jarvisInput.value.trim();
-  if (!text) return;
-  
+  const text = UI.jarvisInput.value.trim().slice(0, 2000);
+  if (!text || UI.jarvisSendBtn.disabled) return;
+
+  if (!StudySmartAI.hasKey()) {
+    appendJarvisMessage('Add your own Gemini API key on the left (or in Settings → AI) to use Jarvis. Everything else in Study-Smart works without it.', 'assistant');
+    UI.jarvisStatusBadge.textContent = 'No API key';
+    return;
+  }
+  if (!(await StudySmartAI.ensureConsent())) {
+    UI.jarvisStatusBadge.textContent = 'AI off';
+    return;
+  }
+
   UI.jarvisInput.value = '';
-  
-  // Add User Message
   appendJarvisMessage(text, 'user');
-  
-  // Add Loading State
   UI.jarvisStatusBadge.textContent = 'Thinking...';
-  
+  UI.jarvisSendBtn.disabled = true;
+
   try {
-    const key = appState.settings?.geminiKey;
-    if (!key) {
-      setTimeout(() => {
-        appendJarvisMessage('Please save your Gemini API key on the left to enable Cloud AI features. For now, I can only provide basic offline study tips.', 'assistant');
-        UI.jarvisStatusBadge.textContent = 'Offline Mode';
-      }, 500);
-      return;
-    }
-    
-    // Stub for actual Gemini API call (to be replaced by the owner after github push)
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`;
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: `You are Jarvis, a helpful AI study assistant. Answer concisely. User says: ${text}` }] }]
-      })
+    const reply = await StudySmartAI.generate({
+      system: 'You are Jarvis, a concise study assistant for a university student. Be accurate; say when you are unsure. Do not invent sources or citations. Do not claim affiliation with any university.',
+      parts: [{ text }],
+      maxTokens: 1024,
     });
-    
-    if (!response.ok) throw new Error('API Error');
-    
-    const data = await response.json();
-    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "I'm sorry, I couldn't process that.";
-    
-    appendJarvisMessage(reply, 'assistant');
+    appendJarvisMessage(reply.slice(0, 6000), 'assistant');
     UI.jarvisStatusBadge.textContent = 'Ready';
   } catch (err) {
-    console.error(err);
-    appendJarvisMessage('Error contacting AI. Please check your API key and connection.', 'assistant');
+    appendJarvisMessage(err && err.userMessage ? err.userMessage : 'Error contacting AI. Please try again.', 'assistant');
     UI.jarvisStatusBadge.textContent = 'Error';
+  } finally {
+    UI.jarvisSendBtn.disabled = false;
   }
 }
 
@@ -2326,4 +2457,141 @@ function appendJarvisMessage(text, role) {
 window.fillJarvisPrompt = function(promptText) {
   UI.jarvisInput.value = promptText;
   UI.jarvisInput.focus();
+}
+
+
+// ==========================================
+// PREMIUM (Paddle) — gates apply only when purchases are actually possible
+// ==========================================
+const FREE_LIMITS = { modules: 5, flashcards: 60 };
+
+function premiumGateActive() {
+  const billing = window.StudySmartBilling;
+  return !!(billing && billing.isConfigured() && !appState.isPremium);
+}
+
+function applyBillingState() {
+  const billing = window.StudySmartBilling;
+  const configured = !!(billing && billing.isConfigured());
+  const premiumBtn = document.getElementById('premium-upgrade-btn');
+  if (premiumBtn) premiumBtn.style.display = configured && !appState.isPremium ? '' : 'none';
+  const priceEl = document.getElementById('premium-price-label');
+  if (priceEl && configured) priceEl.textContent = billing.priceLabel();
+  if (configured) {
+    appState.isPremium = billing.cachedPremium();
+    billing.refreshEntitlement();
+  } else {
+    appState.isPremium = false;
+  }
+  refreshSettingsPane();
+}
+document.addEventListener('studysmart:premium', () => {
+  const premiumBtn = document.getElementById('premium-upgrade-btn');
+  const billing = window.StudySmartBilling;
+  if (premiumBtn && billing && billing.isConfigured()) premiumBtn.style.display = appState.isPremium ? 'none' : '';
+  refreshSettingsPane();
+});
+
+// ==========================================
+// SETTINGS & PRIVACY PANE
+// ==========================================
+function setText(id, text) {
+  const node = document.getElementById(id);
+  if (node) node.textContent = text;
+}
+
+function refreshSettingsPane() {
+  if (!document.getElementById('tab-settings')) return;
+  const hasKey = !!(appState.settings && appState.settings.geminiKey);
+  const consent = window.StudySmartAI && StudySmartAI.hasConsent();
+  setText('settings-ai-status', hasKey
+    ? (consent ? 'Gemini key saved · AI features on' : 'Gemini key saved · AI features off until you agree to the AI notice')
+    : 'No Gemini key · AI features off (everything else works)');
+  const toggle = document.getElementById('settings-ai-toggle');
+  if (toggle) toggle.checked = !!consent;
+  const removeBtn = document.getElementById('settings-remove-key-btn');
+  if (removeBtn) removeBtn.disabled = !hasKey;
+
+  const billing = window.StudySmartBilling;
+  const configured = !!(billing && billing.isConfigured());
+  const premiumBox = document.getElementById('settings-premium');
+  if (premiumBox) premiumBox.style.display = configured ? '' : 'none';
+  if (configured) {
+    setText('settings-premium-status', appState.isPremium ? 'Premium is active on this device.' : 'Free plan.');
+    setText('settings-purchase-id', billing.getInstallId());
+  }
+}
+
+function setupSettingsPane() {
+  const on = (id, evt, fn) => { const n = document.getElementById(id); if (n) n.addEventListener(evt, fn); };
+
+  on('settings-remove-key-btn', 'click', async () => {
+    if (!confirm('Remove your Gemini API key from this device?')) return;
+    delete appState.settings.geminiKey;
+    await saveState();
+    refreshSettingsPane();
+  });
+
+  on('settings-ai-toggle', 'change', async (e) => {
+    if (e.target.checked) {
+      const ok = await StudySmartAI.ensureConsent();
+      e.target.checked = ok;
+    } else {
+      await StudySmartAI.withdrawConsent();
+    }
+    refreshSettingsPane();
+  });
+
+  on('settings-change-pin-btn', 'click', async () => {
+    const current = document.getElementById('settings-pin-current').value.trim();
+    const next = document.getElementById('settings-pin-new').value.trim();
+    const confirmPin = document.getElementById('settings-pin-confirm').value.trim();
+    const msg = document.getElementById('settings-pin-msg');
+    if (next !== confirmPin) { msg.textContent = 'The new PINs do not match.'; return; }
+    try {
+      await Security.changePIN(current, next);
+      msg.textContent = 'PIN changed. Your data was re-encrypted with the new PIN.';
+      ['settings-pin-current', 'settings-pin-new', 'settings-pin-confirm'].forEach(id => { document.getElementById(id).value = ''; });
+    } catch (err) {
+      msg.textContent = err && err.message && !err.message.startsWith('WIPE') ? err.message : 'Could not change the PIN.';
+    }
+  });
+
+  on('settings-copy-purchase-id', 'click', async () => {
+    const id = window.StudySmartBilling ? StudySmartBilling.getInstallId() : '';
+    try {
+      await navigator.clipboard.writeText(id);
+      setText('settings-restore-msg', 'Purchase ID copied. Keep it somewhere safe.');
+    } catch {
+      setText('settings-restore-msg', 'Copy failed — select the ID and copy it manually.');
+    }
+  });
+
+  on('settings-restore-btn', 'click', async () => {
+    const input = document.getElementById('settings-restore-input');
+    const result = await StudySmartBilling.restoreWithPurchaseId(input.value);
+    const messages = {
+      invalid: 'That is not a valid purchase ID (32 characters, 0-9 and a-f).',
+      restored: 'Premium restored on this device.',
+      not_found: 'No active Premium subscription was found for that purchase ID.',
+      offline: 'Could not reach the purchase service. Check your connection and try again.',
+      error: 'Could not save the purchase ID on this device.',
+    };
+    setText('settings-restore-msg', messages[result] || messages.error);
+    refreshSettingsPane();
+  });
+
+  on('settings-erase-btn', 'click', async () => {
+    const answer = prompt('This permanently erases all modules, flashcards, schedules, scans, your Gemini key and your PIN on this device. Export a backup first if you want to keep anything.\n\nType ERASE to continue.');
+    if (answer !== 'ERASE') return;
+    await Security.eraseEverything();
+    alert('All Study-Smart data on this device was erased.');
+    window.location.reload();
+  });
+
+  document.querySelectorAll('[data-jarvis-prompt]').forEach(btn => {
+    btn.addEventListener('click', () => window.fillJarvisPrompt(btn.getAttribute('data-jarvis-prompt')));
+  });
+
+  refreshSettingsPane();
 }

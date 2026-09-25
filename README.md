@@ -1,16 +1,34 @@
 # Study-Smart Vision
 *See it. Understand it. Master it.*
 
-Study-Smart Vision is an offline-first intelligent study system that turns physical learning material into adaptive study plans. Built for the **OpenCV AI Competition 2026**.
+An offline-first study app (PWA) for planning study time, keeping spaced-repetition flashcards, running focus timers and scanning study material. Built in Namibia for students everywhere, and entered in the OpenCV AI Competition 2026.
 
-## The Vision
-We transform the camera from a simple capture tool into an input device for an intelligent study agent. Using **OpenCV 5** running locally in the browser, the system assesses image quality, corrects perspective, and optimizes bandwidth. An Agentic loop then evaluates the data, extracts learning concepts via an **AWS serverless backend**, and automatically generates flashcards and updates study schedules.
+## What runs where
 
-## Features
-- **Local Preprocessing:** OpenCV.js handles blur detection, contour detection, and perspective correction locally.
-- **Agentic Vision:** A continuous Perceive -> Decide -> Act loop ensures only high-quality scans are processed, reducing cloud costs and API errors.
-- **Privacy First:** AES-GCM local encryption. Cloud images are stored in ephemeral S3 buckets with aggressive deletion policies.
-- **Low-Bandwidth Optimized:** Built as a PWA with local OpenCV cropping to minimize payload sizes for users in emerging markets (e.g., Namibia).
+- **On the device, always:** the whole app works offline. Study data is stored in the browser and encrypted with AES-GCM, using a key derived from the user's PIN (PBKDF2 + HKDF; the stored PIN check value cannot decrypt data). OpenCV.js checks photo quality (blur and lighting), finds the page outline and straightens it (perspective correction). Cleaned scans are stored encrypted in IndexedDB.
+- **Optional AI, with the user's own Google Gemini API key:** the Jarvis assistant, AI flashcard suggestions from a scan, and "Build My Semester". Nothing is sent until the user agrees to the AI notice, which includes the 18+ age requirement from Google's terms. The user reviews every suggestion before anything is saved.
+- **Optional Premium (Paddle):** switched off until paddle-integration.js is configured and the entitlement service in ws/ is deployed. Premium is granted only after Paddle's signed webhook has been verified on the server.
+- **No Study-Smart accounts, analytics or trackers.**
+
+## Pages
+
+- index.html: public landing page.
+- pp.html: the app (installable PWA).
+- privacy.html, 	erms.html, copyright.html: generated from legal-src/*.md by python tools/build_legal.py. They are **drafts** until the markers are resolved; see LEGAL_REVIEW.md.
+- 
+otices.html: third-party notices.
+- 404.html
+
+## Develop and test
+
+`ash
+python -m http.server 8802                     # serve the folder
+python tests/e2e_test.py http://localhost:8802 # browser tests (Playwright + Chromium)
+cd aws && python -m unittest discover -s tests # Paddle webhook / entitlement tests
+node tools/release_check.js                    # pre-release gate
+`
+
+Release steps are in RELEASE_CHECKLIST.md. The audit and change log is in LAUNCH_AUDIT_REPORT.md.
 
 ### Free Tier
 - Up to **5 modules** and **60 flashcards**
@@ -31,9 +49,10 @@ We transform the camera from a simple capture tool into an input device for an i
 - Study Group sharing
 
 ## Documentation
+
 - [Architecture](docs/architecture.md)
 - [Agentic Vision Loop](docs/agentic-vision.md)
-- [Privacy Policy](docs/privacy.md)
+- [Privacy](privacy.html)
 - [Evaluation](docs/evaluation.md)
 - [Demo Script](docs/demo-script.md)
 

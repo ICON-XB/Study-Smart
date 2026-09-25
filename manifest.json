@@ -1,18 +1,19 @@
 {
-  "short_name": "StudySmart",
-  "name": "StudySmart Organizer & Scheduler",
+  "short_name": "Study-Smart",
+  "name": "Study-Smart — Study Planner, Flashcards & Smart Scan",
+  "description": "Offline study planner, flashcards, focus timer and on-device document scanner.",
   "icons": [
-    {
-      "src": "icon.svg",
-      "type": "image/svg+xml",
-      "sizes": "any",
-      "purpose": "any maskable"
-    }
+    { "src": "icon.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "any" },
+    { "src": "icons/icon-192.png", "type": "image/png", "sizes": "192x192", "purpose": "any" },
+    { "src": "icons/icon-512.png", "type": "image/png", "sizes": "512x512", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "type": "image/png", "sizes": "512x512", "purpose": "maskable" }
   ],
+  "id": "./app.html",
   "start_url": "./app.html",
+  "scope": "./",
   "background_color": "#0a0a0f",
   "theme_color": "#8b5cf6",
   "display": "standalone",
   "orientation": "any",
-  "scope": "./"
+  "categories": ["education", "productivity"]
 }

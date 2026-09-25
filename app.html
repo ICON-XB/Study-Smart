@@ -3,62 +3,27 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- Content Security Policy — updated to allow Paddle payment SDK -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.paddle.com; style-src 'self' https://fonts.googleapis.com https://cdn.paddle.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://cdn.paddle.com https://paddle.s3.amazonaws.com; connect-src 'self' https://checkout.paddle.com https://vendors.paddle.com https://generativelanguage.googleapis.com; frame-src https://checkout.paddle.com;">
-  <title>StudySmart - Exam Prep Organizer & Smart Scheduler</title>
+  <!-- Content Security Policy (GitHub Pages cannot send headers, so it is set here).
+       'unsafe-eval' is required by the bundled OpenCV.js build (Emscripten embind);
+       inline scripts and inline event handlers are NOT allowed. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' https://cdn.paddle.com; style-src 'self' 'unsafe-inline'  https://cdn.paddle.com; font-src 'self' ; img-src 'self' data: blob: https://cdn.paddle.com; media-src 'self' blob:; connect-src 'self' data: https://generativelanguage.googleapis.com https://*.paddle.com; frame-src https://*.paddle.com; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="description" content="Study-Smart: offline study planner, flashcards, focus timer and document scanner.">
+  <title>Study-Smart — Study Planner, Flashcards &amp; Smart Scan</title>
   <!-- PWA Support -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#8b5cf6">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="apple-touch-icon" href="icon.svg">
-  <!-- Security Headers -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:;">
-  <!-- Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <!-- Fonts (Google Fonts receives the visitor's IP address; see privacy.html) -->
   <!-- Main Stylesheet -->
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- SECURITY LOCK SCREEN -->
-  <div id="security-lock-screen" class="modal-overlay" style="display: none; z-index: 9999; backdrop-filter: blur(20px);">
-    <div class="modal-card" style="text-align: center; max-width: 320px;">
-      <h2 style="margin-bottom: 20px;">StudySmart Locked</h2>
-      <input type="password" id="lock-pin-input" class="form-input" placeholder="Enter PIN" style="text-align: center; font-size: 24px; letter-spacing: 4px;" maxlength="8">
-      <button id="lock-submit-btn" class="btn btn-primary" style="width: 100%; margin-top: 20px;">Unlock</button>
-      <p id="lock-error-msg" style="color: #ef4444; margin-top: 10px; display: none;"></p>
-    </div>
-  </div>
-
-  <!-- SECURITY SETUP MODAL -->
-  <div id="security-setup-modal" class="modal-overlay" style="display: none; z-index: 9999;">
-    <div class="modal-card">
-      <h2 style="margin-bottom: 20px;">Set Up Security PIN</h2>
-      <p style="margin-bottom: 20px; font-size: 14px; color: #a1a1aa;">Create a 4-8 digit PIN to encrypt your study data.</p>
-      <div class="form-group">
-        <label>New PIN</label>
-        <input type="password" id="setup-pin-input" class="form-input" placeholder="4-8 digits" maxlength="8">
-      </div>
-      <div class="form-group" style="margin-top: 15px;">
-        <label>Confirm PIN</label>
-        <input type="password" id="setup-pin-confirm" class="form-input" placeholder="Confirm PIN" maxlength="8">
-      </div>
-      
-      <div style="margin-top: 20px; text-align: center;">
-        <p style="font-size: 12px; color: #a1a1aa; margin-bottom: 10px;">Optional: Link account for cross-device sync & Premium</p>
-        <button id="google-signin-stub" class="btn btn-secondary" style="width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px;">
-          <svg viewBox="0 0 24 24" width="18" height="18" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-          Sign in with Google
-        </button>
-      </div>
-
-      <button id="setup-submit-btn" class="btn btn-primary" style="width: 100%; margin-top: 20px;">Save & Encrypt</button>
-      <p id="setup-error-msg" style="color: #ef4444; margin-top: 10px; display: none;"></p>
-    </div>
-  </div>
-
   <div class="glow-bg"></div>
   
   <div class="app-container">
@@ -113,6 +78,10 @@
           <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" class="nav-icon"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           <span>Smart Scan</span>
         </a>
+        <a href="#" class="nav-item" data-tab="settings" id="nav-settings">
+          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" class="nav-icon"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span>Settings &amp; Privacy</span>
+        </a>
       </nav>
       
       <div class="sidebar-footer">
@@ -130,6 +99,12 @@
         <div class="offline-indicator offline" id="offline-badge" style="display: none;">
           <span class="indicator-dot"></span> Offline Mode
         </div>
+        <nav class="sidebar-legal" aria-label="Legal" style="margin-top:10px;font-size:12px;display:flex;flex-wrap:wrap;gap:8px;">
+          <a href="privacy.html">Privacy</a>
+          <a href="terms.html">Terms</a>
+          <a href="copyright.html">Copyright</a>
+          <a href="notices.html">Notices</a>
+        </nav>
       </div>
     </aside>
 
@@ -285,9 +260,10 @@
 
               <!-- Quick Templates Dropdown -->
               <div class="form-group mt-4">
-                <label for="import-template">Or Load a Standard Curriculum Template</label>
+                <label for="import-template">Or start from an example template</label>
+                <p class="text-xs text-muted" id="import-template-note">Example module lists only — they are <strong>not official curricula</strong> and are not provided or endorsed by the institutions named. Edit them to match your official programme handbook.</p>
                 <select id="import-template" class="form-select">
-                  <option value="">-- Choose a university &amp; programme template --</option>
+                  <option value="">-- Choose an example template (unofficial) --</option>
                   <optgroup label="🇳🇦 NUST — Namibia University of Science &amp; Technology">
                     <option value="nust_it">NUST · Information Technology</option>
                     <option value="nust_eng">NUST · Engineering (Electrical / Mechanical)</option>
@@ -302,7 +278,7 @@
                     <option value="ium_business">IUM · Business Administration</option>
                     <option value="ium_ict">IUM · Information &amp; Communication Technology</option>
                   </optgroup>
-                  <optgroup label="🌍 UCT — University of Cape Town (South Africa, #1 Africa)">
+                  <optgroup label="🌍 UCT — University of Cape Town (South Africa)">
                     <option value="uct_popular">UCT · Popular Courses (Science, Law, CS, Economics, Environment)</option>
                   </optgroup>
                   <optgroup label="🌍 WITS — University of the Witwatersrand (South Africa)">
@@ -314,7 +290,7 @@
                   <optgroup label="🌍 Makerere University (Uganda)">
                     <option value="makerere_popular">Makerere · Popular Courses (Social Sciences, Law, Medicine, Education)</option>
                   </optgroup>
-                  <optgroup label="🌍 Cairo University (Egypt, Largest in Africa)">
+                  <optgroup label="🌍 Cairo University (Egypt)">
                     <option value="cairo_popular">Cairo · Popular Courses (Engineering, Architecture, Pharmacy, Media)</option>
                   </optgroup>
                   <optgroup label="🌍 UNISA — Univ. of South Africa (Open Distance Learning)">
@@ -681,16 +657,16 @@ MTH-201 Calculus I (Semester 1, Prereq: Math Level 3)
               <div class="form-group mb-4">
                 <label for="gemini-api-key">Gemini API Key (Required for Cloud AI)</label>
                 <input type="password" id="gemini-api-key" placeholder="Enter your Gemini API key" class="form-input">
-                <p class="text-xs text-muted mt-2">Get a free key from Google AI Studio. Stored securely on your device.</p>
+                <p class="text-xs text-muted mt-2">Uses your own key from Google AI Studio (Google requires users to be 18+). The key is stored encrypted on this device and is never included in backups. Messages you send go directly to Google under your agreement with Google; on Google's free tier they may be used to improve Google's products. Don't share personal information.</p>
               </div>
               <button class="btn btn-primary w-full" id="save-gemini-key-btn">Save API Key</button>
               
               <div class="mt-6 border-top pt-4">
                 <h4 class="text-sm font-semibold mb-3">Quick Prompts</h4>
                 <div class="flex-column gap-2">
-                  <button class="btn btn-secondary text-sm text-left" onclick="fillJarvisPrompt('Explain the last topic I struggled with')">Explain last topic</button>
-                  <button class="btn btn-secondary text-sm text-left" onclick="fillJarvisPrompt('Generate 5 flashcards for my upcoming exam')">Generate Flashcards</button>
-                  <button class="btn btn-secondary text-sm text-left" onclick="fillJarvisPrompt('Quiz me on Biology')">Quiz me</button>
+                  <button class="btn btn-secondary text-sm text-left" data-jarvis-prompt="Explain the last topic I struggled with">Explain last topic</button>
+                  <button class="btn btn-secondary text-sm text-left" data-jarvis-prompt="Generate 5 flashcards for my upcoming exam">Generate Flashcards</button>
+                  <button class="btn btn-secondary text-sm text-left" data-jarvis-prompt="Quiz me on Biology">Quiz me</button>
                 </div>
               </div>
             </div>
@@ -704,7 +680,7 @@ MTH-201 Calculus I (Semester 1, Prereq: Math Level 3)
               
               <div class="chat-container flex-1 overflow-y-auto mb-4" id="jarvis-chat-history" style="min-height: 300px; display: flex; flex-direction: column; gap: 15px;">
                 <div class="chat-message assistant" style="background: rgba(139, 92, 246, 0.1); padding: 10px 15px; border-radius: 12px; align-self: flex-start; max-width: 80%;">
-                  Hello! I'm Jarvis, your AI study assistant. How can I help you today
+                  Hello! I'm Jarvis, an AI study assistant. I can make mistakes — check important answers against your course material. How can I help?
                 </div>
               </div>
               
@@ -730,8 +706,8 @@ MTH-201 Calculus I (Semester 1, Prereq: Math Level 3)
               <div class="flex-1 flex-column" style="gap: 15px;">
                 <!-- Build My Semester Mode Toggle -->
                 <div class="flex-row gap-2 mb-2">
-                   <button class="btn btn-primary flex-1" id="mode-single-scan" onclick="setScanMode('single')">Quick Scan</button>
-                   <button class="btn btn-secondary flex-1" id="mode-build-semester" onclick="setScanMode('semester')">Build My Semester</button>
+                   <button class="btn btn-primary flex-1" id="mode-single-scan">Quick Scan</button>
+                   <button class="btn btn-secondary flex-1" id="mode-build-semester">Build My Semester</button>
                 </div>
                 
                 <div id="video-container" style="position: relative; width: 100%; aspect-ratio: 4/3; background: #000; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
@@ -750,27 +726,24 @@ MTH-201 Calculus I (Semester 1, Prereq: Math Level 3)
                 </div>
 
                 <div class="flex-row gap-2">
-                  <button class="btn btn-secondary flex-1" id="btn-camera" onclick="startCamera()">
+                  <button class="btn btn-secondary flex-1" id="btn-camera">
                     <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Start Camera
                   </button>
-                  <button class="btn btn-secondary flex-1" id="btn-upload" onclick="document.getElementById('file-upload').click()">
+                  <button class="btn btn-secondary flex-1" id="btn-upload">
                     <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Upload Image
                   </button>
-                  <input type="file" id="file-upload" accept="image/*" style="display: none;" onchange="handleImageUpload(event)" multiple>
+                  <input type="file" id="file-upload" accept="image/jpeg,image/png,image/webp" style="display: none;">
                 </div>
 
                 <div class="flex-row gap-2">
-                  <button class="btn btn-primary flex-1" id="btn-scan" onclick="performScan()" style="display: none;">Process Image</button>
-                  <button class="btn btn-success flex-1" id="btn-analyze-semester" onclick="analyzeSemester()" style="display: none;">Analyze Semester</button>
+                  <button class="btn btn-primary flex-1" id="btn-scan" style="display: none;">Process Image</button>
+                  <button class="btn btn-success flex-1" id="btn-analyze-semester" style="display: none;">Analyze Semester</button>
                 </div>
                 
                 <!-- Cloud processing disclaimer -->
-                <p id="cloud-consent-msg" class="text-xs text-muted mt-2" style="display: none;">By processing, you consent to securely analyze this document in the Study-Smart cloud (AWS). Processed images are ephemeral and auto-deleted.</p>
+                <p id="cloud-consent-msg" class="text-xs text-muted mt-2">Photos are cleaned up on this device with OpenCV and saved encrypted here. Nothing is uploaded unless you add your own Gemini API key and agree to the AI notice — then the cleaned image is sent to Google to suggest flashcards. Only scan material you are allowed to use.</p>
 
-                <div id="agent-feedback" class="alert alert-info mt-3" style="display: none; padding: 10px; border-radius: 6px; font-size: 14px;"></div>
-              </div>
-            </div>
-                <div id="agent-feedback" class="alert alert-info mt-3" style="display: none; padding: 10px; border-radius: 6px; font-size: 14px;"></div>
+                <div id="agent-feedback" class="alert alert-info mt-3" role="status" aria-live="polite" style="display: none; padding: 10px; border-radius: 6px; font-size: 14px;"></div>
               </div>
             </div>
 
@@ -778,18 +751,84 @@ MTH-201 Calculus I (Semester 1, Prereq: Math Level 3)
             <div class="glass-card flex-column">
               <div class="card-header border-bottom pb-4 mb-4">
                 <h2 class="card-title">Processed Document</h2>
-                <span class="badge" id="vision-status">Waiting for input</span>
+                <span class="badge" id="vision-status">Loading scanner…</span>
               </div>
               <div class="flex-1 flex-column" style="gap: 15px; position: relative;">
                 <canvas id="output-canvas" style="width: 100%; max-height: 400px; object-fit: contain; background: #f0f0f0; border-radius: 8px;"></canvas>
                 
                 <div id="extraction-results" style="display: none; margin-top: 15px;">
-                  <h4 class="font-semibold mb-2">Agent Action Trace</h4>
+                  <h4 class="font-semibold mb-2">What happened</h4>
                   <ul id="agent-trace-list" class="text-sm" style="list-style: none; padding: 0; display: flex; flex-direction: column; gap: 8px; color: #333;">
                   </ul>
-                  <button class="btn btn-primary w-full mt-4" id="btn-approve-plan" onclick="approveStudyPlan()">Approve & Integrate</button>
+                  <div id="scan-review" class="mt-3"></div>
+                  <button class="btn btn-primary w-full mt-4" id="btn-approve-plan" type="button" style="display:none;">Approve</button>
                 </div>
               </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 9: SETTINGS & PRIVACY -->
+        <section id="tab-settings" class="tab-pane">
+          <div class="grid-layout cols-1-2 max-width-lg mx-auto">
+            <div class="glass-card flex-column" style="gap:14px;">
+              <div class="card-header border-bottom pb-4 mb-2">
+                <h2 class="card-title">Your data</h2>
+              </div>
+              <p class="text-sm text-muted">Everything you add is stored in this browser on this device, encrypted with a key made from your PIN. There is no Study-Smart account or cloud copy — export a backup to keep your data safe.</p>
+              <div class="flex-row gap-2" style="flex-wrap:wrap;">
+                <button class="btn btn-secondary" id="settings-export-btn" type="button">Export backup (JSON)</button>
+                <button class="btn btn-secondary" id="settings-import-btn" type="button">Restore backup</button>
+              </div>
+              <p class="text-xs text-muted">Backups are not encrypted and never include your Gemini key. Keep them private.</p>
+
+              <h3 class="font-semibold mt-4">Change PIN</h3>
+              <input type="password" id="settings-pin-current" class="form-input" inputmode="numeric" autocomplete="current-password" placeholder="Current PIN" maxlength="12">
+              <input type="password" id="settings-pin-new" class="form-input" inputmode="numeric" autocomplete="new-password" placeholder="New PIN (4–12 digits; 6+ is safer)" maxlength="12">
+              <input type="password" id="settings-pin-confirm" class="form-input" inputmode="numeric" autocomplete="new-password" placeholder="Confirm new PIN" maxlength="12">
+              <button class="btn btn-secondary" id="settings-change-pin-btn" type="button">Change PIN</button>
+              <p class="text-xs" id="settings-pin-msg" role="status" aria-live="polite"></p>
+              <p class="text-xs text-muted">The PIN protects your data from casual access on a shared device. Someone with a copy of this browser's data could still guess a short PIN, so use a longer one if your notes are sensitive. After 10 wrong attempts, the data on this device is erased.</p>
+
+              <h3 class="font-semibold mt-4" style="color:#ef4444;">Erase all data on this device</h3>
+              <p class="text-xs text-muted">Removes modules, flashcards, schedules, scans, your Gemini key and your PIN from this browser. This cannot be undone.</p>
+              <button class="btn btn-secondary" id="settings-erase-btn" type="button" style="border-color:#ef4444;color:#ef4444;">Erase all data…</button>
+            </div>
+
+            <div class="glass-card flex-column" style="gap:14px;">
+              <div class="card-header border-bottom pb-4 mb-2">
+                <h2 class="card-title">AI, Premium &amp; legal</h2>
+              </div>
+              <h3 class="font-semibold">AI features (optional)</h3>
+              <p class="text-sm" id="settings-ai-status"></p>
+              <label class="text-sm" style="display:flex;gap:8px;align-items:center;">
+                <input type="checkbox" id="settings-ai-toggle"> Allow AI features (sends your messages or cleaned scans to Google Gemini with your key)
+              </label>
+              <button class="btn btn-secondary" id="settings-remove-key-btn" type="button">Remove Gemini API key</button>
+              <p class="text-xs text-muted">Add or replace the key in the Jarvis AI tab.</p>
+
+              <div id="settings-premium" style="display:none;">
+                <h3 class="font-semibold mt-4">Premium</h3>
+                <p class="text-sm" id="settings-premium-status"></p>
+                <p class="text-xs text-muted">Your purchase ID links Premium to this device. Keep a copy to restore Premium on another device.</p>
+                <code id="settings-purchase-id" style="word-break:break-all;font-size:12px;"></code>
+                <div class="flex-row gap-2 mt-2" style="flex-wrap:wrap;">
+                  <button class="btn btn-secondary btn-sm" id="settings-copy-purchase-id" type="button">Copy purchase ID</button>
+                </div>
+                <input type="text" id="settings-restore-input" class="form-input mt-2" placeholder="Paste a purchase ID to restore Premium" maxlength="32" autocomplete="off">
+                <button class="btn btn-secondary btn-sm mt-2" id="settings-restore-btn" type="button">Restore Premium</button>
+                <p class="text-xs mt-2" id="settings-restore-msg" role="status" aria-live="polite"></p>
+                <p class="text-xs text-muted">To cancel, use the link in your Paddle receipt email.</p>
+              </div>
+
+              <h3 class="font-semibold mt-4">Legal</h3>
+              <div class="flex-row gap-2" style="flex-wrap:wrap;">
+                <a class="btn btn-secondary btn-sm" href="privacy.html">Privacy Notice</a>
+                <a class="btn btn-secondary btn-sm" href="terms.html">Terms &amp; Licence</a>
+                <a class="btn btn-secondary btn-sm" href="copyright.html">Copyright complaints</a>
+                <a class="btn btn-secondary btn-sm" href="notices.html">Third-party notices</a>
+              </div>
+              <p class="text-xs text-muted">Study-Smart is not affiliated with or endorsed by any university. AI suggestions can be wrong — always check them against your official course material.</p>
             </div>
           </div>
         </section>
@@ -1033,39 +1072,44 @@ Chapter 3: Integrals
         <button class="btn-close modal-close-btn">&times;</button>
       </div>
       <div class="modal-body">
-        <p class="text-sm text-muted mb-4 text-center">Upgrade to Premium for unlimited access.</p>
-        
+        <p class="text-sm text-muted mb-4 text-center">The free plan includes everything in Study-Smart with up to 5 modules and 60 flashcards. Premium removes those limits.</p>
+
         <div class="premium-features-list mb-6" style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 12px; font-size: 14px;">
           <ul style="list-style: none; padding: 0; margin: 0;">
-            <li style="margin-bottom: 8px;">✅ Unlimited Modules & Flashcards</li>
-            <li style="margin-bottom: 8px;">✅ PDF Notes Integration</li>
-            <li style="margin-bottom: 8px;">✅ Progress Analytics & Charts</li>
-            <li style="margin-bottom: 8px;">✅ Voice-to-Flashcard</li>
-            <li style="margin-bottom: 8px;">✅ Push Notifications</li>
-            <li>✅ Study Groups & Sharing</li>
+            <li style="margin-bottom: 8px;">✅ Unlimited modules (free plan: 5)</li>
+            <li>✅ Unlimited flashcards (free plan: 60)</li>
           </ul>
         </div>
 
-        <div class="form-group mb-4">
-          <label>Already Premium Enter License Key</label>
-          <div style="display: flex; gap: 10px;">
-            <input type="text" id="license-key-input" class="form-input" placeholder="e.g. KEY-12345">
-            <button class="btn btn-secondary" id="verify-license-btn">Verify</button>
-          </div>
-        </div>
-
         <div style="text-align: center; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
-          <p class="text-sm mb-3">Unlock everything for only <strong>NAD 50/month</strong></p>
-          <!-- Paddle Checkout Button -->
-          <!-- ⚠️  DUMI: Replace PADDLE_CLIENT_TOKEN and PADDLE_PRICE_ID below with your real IDs -->
-          <button class="btn btn-primary w-full" id="paddle-checkout-btn"
-            data-paddle-token="PADDLE_CLIENT_TOKEN"
-            data-paddle-price="PADDLE_PRICE_ID">
-            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" style="margin-right:8px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            Get Premium — NAD 50/month
-          </button>
-          <p class="text-xs text-muted mt-3">Secure payment powered by Paddle. Cancel anytime.</p>
+          <p class="text-sm mb-3"><strong id="premium-price-label">Price shown at checkout</strong></p>
+          <button class="btn btn-primary w-full" id="paddle-checkout-btn" type="button">Continue to secure checkout</button>
+          <p class="text-xs text-muted mt-3">Sold by Paddle.com, our merchant of record. The subscription renews automatically each billing period until you cancel; cancel any time from your Paddle receipt email and keep Premium until the paid period ends. Refunds follow Paddle's policy and your consumer rights. By continuing you agree to the <a href="terms.html">Terms</a> and <a href="https://www.paddle.com/legal/checkout-buyer-terms" target="_blank" rel="noopener">Paddle's Buyer Terms</a>. See the <a href="privacy.html">Privacy Notice</a>.</p>
+          <p class="text-xs text-muted mt-2">Already bought Premium on another device? Use Settings &amp; Privacy → Premium → Restore.</p>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI notice (shown before anything is sent to Google Gemini) -->
+  <div class="modal-overlay" id="ai-consent-modal" role="dialog" aria-modal="true" aria-labelledby="ai-consent-title">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title" id="ai-consent-title">Before using AI features</h3>
+      </div>
+      <div class="modal-body text-sm" style="display:flex;flex-direction:column;gap:10px;">
+        <p>AI features send what you type, or the cleaned image of a page you scan, <strong>directly from this browser to Google's Gemini API</strong> using your own API key. Study-Smart does not receive it.</p>
+        <p>Google handles it under the Gemini API terms you accepted. On Google's <strong>free tier</strong>, Google may use prompts and responses to improve its products, and human reviewers may read them. Don't send personal or confidential information, or material you don't have the right to use.</p>
+        <p>AI answers and flashcards can be wrong. Nothing is saved until you review it.</p>
+        <label style="display:flex;gap:8px;align-items:flex-start;">
+          <input type="checkbox" id="ai-consent-age"> <span>I am 18 or older (required by Google for the Gemini API).</span>
+        </label>
+        <p class="text-xs" id="ai-consent-error" role="alert" style="color:#ef4444;"></p>
+        <p class="text-xs text-muted">You can turn this off any time in Settings &amp; Privacy. <a href="privacy.html">Privacy Notice</a></p>
+      </div>
+      <div class="flex-row gap-2" style="justify-content:flex-end;padding:0 20px 20px;">
+        <button class="btn btn-secondary" id="ai-consent-decline" type="button">Not now</button>
+        <button class="btn btn-primary" id="ai-consent-accept" type="button">Allow AI features</button>
       </div>
     </div>
   </div>
@@ -1085,22 +1129,23 @@ Chapter 3: Integrals
         </svg>
       </div>
       <h2 class="security-title" id="setup-title">Protect Your Data</h2>
-      <p class="security-subtitle">Create a 4–8 digit PIN to encrypt your notes and study data. This PIN is stored only on your device — we never see it.</p>
+      <p class="security-subtitle">Create a 4–12 digit PIN (6 or more is safer) to encrypt your study data in this browser. Your PIN never leaves this device and cannot be recovered.</p>
 
       <div class="pin-input-group">
         <label for="setup-pin" class="pin-label">Create PIN</label>
-        <input type="password" id="setup-pin" class="pin-input" inputmode="numeric" pattern="[0-9]*" minlength="4" maxlength="8" placeholder="4–8 digits" autocomplete="new-password">
+        <input type="password" id="setup-pin" class="pin-input" inputmode="numeric" pattern="[0-9]*" minlength="4" maxlength="12" placeholder="4–12 digits" autocomplete="new-password">
       </div>
       <div class="pin-input-group mt-3">
         <label for="setup-pin-confirm" class="pin-label">Confirm PIN</label>
-        <input type="password" id="setup-pin-confirm" class="pin-input" inputmode="numeric" pattern="[0-9]*" minlength="4" maxlength="8" placeholder="Re-enter PIN" autocomplete="new-password">
+        <input type="password" id="setup-pin-confirm" class="pin-input" inputmode="numeric" pattern="[0-9]*" minlength="4" maxlength="12" placeholder="Re-enter PIN" autocomplete="new-password">
       </div>
 
       <div class="security-error" id="setup-error" role="alert"></div>
 
       <button class="btn btn-primary w-full mt-6" id="setup-confirm-btn">Set PIN &amp; Secure Data</button>
 
-      <p class="security-note mt-4">⚠️ If you forget your PIN, all encrypted data will be wiped. There is no recovery — by design.</p>
+      <p class="security-note mt-4">⚠️ If you forget your PIN, your data cannot be recovered. Export backups regularly.</p>
+      <p class="security-note mt-2">By continuing you agree to the <a href="terms.html">Terms &amp; Licence</a>. See how your data is handled in the <a href="privacy.html">Privacy Notice</a>.</p>
     </div>
   </div>
 
@@ -1125,7 +1170,7 @@ Chapter 3: Integrals
 
       <div class="pin-input-group">
         <label for="lock-pin" class="pin-label sr-only">Enter PIN</label>
-        <input type="password" id="lock-pin" class="pin-input" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="Enter PIN" autocomplete="current-password" autofocus>
+        <input type="password" id="lock-pin" class="pin-input" inputmode="numeric" pattern="[0-9]*" maxlength="12" placeholder="Enter PIN" autocomplete="current-password" autofocus>
       </div>
 
       <div class="security-error" id="lock-error" role="alert"></div>
@@ -1135,18 +1180,15 @@ Chapter 3: Integrals
     </div>
   </div>
 
-  <!-- Paddle Billing SDK (loads the checkout overlay) -->
-  <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
+  <!-- No inline scripts: the CSP above blocks them. Paddle.js is loaded on demand by paddle-integration.js. -->
   <script src="security.js"></script>
-  
-  <!-- Study-Smart Vision: OpenCV 5 / OpenCV.js & Agent Pipeline -->
   <script src="idb.js"></script>
   <script src="data/universities.js"></script>
   <script src="vision.js"></script>
   <script src="agent.js"></script>
-  <script async src="opencv.js" onload="VisionSystem.init()"></script>
-  
   <script src="app.js"></script>
   <script src="paddle-integration.js"></script>
+  <!-- Study-Smart Vision: OpenCV.js (runs on this device) -->
+  <script async src="opencv.js"></script>
 </body>
 </html>

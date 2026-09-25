@@ -17,12 +17,24 @@
 
 'use strict';
 
+// Refuse to run inside another site's frame (clickjacking). GitHub Pages
+// cannot send X-Frame-Options / frame-ancestors headers, so do it here.
+if (window.top !== window.self) {
+  try {
+    window.top.location.replace(window.self.location.href);
+  } catch {
+    document.documentElement.style.display = 'none';
+  }
+}
+
 // ============================================================
 // CONSTANTS
 // ============================================================
 const SEC = {
   // Storage keys (the values stored here are always encrypted or hashed)
-  PIN_HASH_KEY:       'ss_pin_hash',
+  PIN_HASH_KEY:       'ss_pin_hash',      // legacy v1 (hash == data key; replaced on next unlock)
+  PIN_VERIFIER_KEY:   'ss_pin_verifier',  // v2: HKDF-separated verifier, cannot decrypt data
+  KDF_KEY:            'ss_kdf',           // v2 parameters, e.g. {"v":2,"iterations":310000}
   PIN_SALT_KEY:       'ss_pin_salt',
   LOCKOUT_KEY:        'ss_lockout',
   SETUP_DONE_KEY:     'ss_setup_done',
@@ -36,7 +48,10 @@ const SEC = {
   INACTIVITY_MS:   300000,  // 5 minutes of inactivity triggers auto-lock
 
   // Crypto parameters
-  PBKDF2_ITERATIONS: 100000,
+  PBKDF2_ITERATIONS: 100000,   // legacy v1 only
+  KDF_V2_ITERATIONS: 310000,   // OWASP-recommended minimum for PBKDF2-HMAC-SHA256 (2021)
+  PIN_MIN: 4,
+  PIN_MAX: 12,
   PBKDF2_HASH:       'SHA-256',
   SALT_BYTES:         16,
   IV_BYTES:           12,
@@ -67,6 +82,10 @@ class SecurityManager {
     if (!this._isSetup) {
       this._showSetupModal();
     } else {
+      // The setup overlay is visible by default in the HTML; hide it for
+      // returning users so it cannot cover the app after unlocking.
+      const setup = document.getElementById('setup-overlay');
+      if (setup) setup.style.display = 'none';
       this._showLockScreen();
     }
 
@@ -87,22 +106,24 @@ class SecurityManager {
   // ----------------------------------------------------------
   async setupPIN(pin) {
     if (!this._validatePINFormat(pin)) {
-      throw new Error('PIN must be 4–8 digits (numbers only).');
+      throw new Error(`PIN must be ${SEC.PIN_MIN}–${SEC.PIN_MAX} digits (numbers only).`);
     }
 
-    const salt    = crypto.getRandomValues(new Uint8Array(SEC.SALT_BYTES));
-    const hash    = await this._hashPIN(pin, salt);
-    const key     = await this._deriveCryptoKey(pin, salt);
+    const salt = crypto.getRandomValues(new Uint8Array(SEC.SALT_BYTES));
+    const { verifier, key } = await this._deriveV2(pin, salt, SEC.KDF_V2_ITERATIONS);
 
-    // Store hash and salt (not the PIN itself)
-    localStorage.setItem(SEC.PIN_HASH_KEY, this._bufToHex(hash));
+    // Store a verifier and the salt — never the PIN or the data key.
+    localStorage.setItem(SEC.PIN_VERIFIER_KEY, this._bufToHex(verifier));
     localStorage.setItem(SEC.PIN_SALT_KEY, this._bufToHex(salt));
+    localStorage.setItem(SEC.KDF_KEY, JSON.stringify({ v: 2, iterations: SEC.KDF_V2_ITERATIONS }));
+    localStorage.removeItem(SEC.PIN_HASH_KEY);
     localStorage.setItem(SEC.SETUP_DONE_KEY, 'true');
 
     this._cryptoKey  = key;
     this._isSetup    = true;
     this._isLocked   = false;
     this._lockoutData = { attempts: 0, lockedUntil: 0 };
+    this._saveLockoutState();
 
     this._startInactivityTimer();
     this._hideLockScreen();
@@ -119,11 +140,24 @@ class SecurityManager {
       throw new Error(`Too many failed attempts. Try again in ${secs}s.`);
     }
 
-    const storedHash = this._hexToBuf(localStorage.getItem(SEC.PIN_HASH_KEY));
-    const salt       = this._hexToBuf(localStorage.getItem(SEC.PIN_SALT_KEY));
+    const salt = this._hexToBuf(localStorage.getItem(SEC.PIN_SALT_KEY) || '');
+    const kdf  = this._readKdf();
+    let match = false;
+    let key = null;
+    let legacyKey = null;
 
-    const attemptHash = await this._hashPIN(pin, salt);
-    const match = this._constantTimeEqual(storedHash, attemptHash);
+    if (kdf) {
+      const derived = await this._deriveV2(pin, salt, kdf.iterations);
+      const stored = this._hexToBuf(localStorage.getItem(SEC.PIN_VERIFIER_KEY) || '');
+      match = this._constantTimeEqual(stored, derived.verifier);
+      key = derived.key;
+    } else {
+      // Legacy v1 data: the stored hash doubled as the encryption key.
+      const storedHash  = this._hexToBuf(localStorage.getItem(SEC.PIN_HASH_KEY) || '');
+      const attemptHash = await this._hashPIN(pin, salt);
+      match = this._constantTimeEqual(storedHash, attemptHash);
+      if (match) legacyKey = await this._deriveCryptoKey(pin, salt);
+    }
 
     if (!match) {
       this._recordFailedAttempt();
@@ -142,8 +176,8 @@ class SecurityManager {
       throw new Error(`Incorrect PIN. ${remaining} attempt${remaining !== 1 ? 's' : ''} left before data wipe.`);
     }
 
-    // Success — derive the crypto key and unlock
-    this._cryptoKey = await this._deriveCryptoKey(pin, salt);
+    // Success — unlock (upgrading legacy v1 storage on the way)
+    this._cryptoKey = legacyKey ? await this._migrateToV2(pin, legacyKey) : key;
     this._lockoutData = { attempts: 0, lockedUntil: 0 };
     this._saveLockoutState();
 
@@ -174,30 +208,88 @@ class SecurityManager {
   // CHANGE PIN
   // ----------------------------------------------------------
   async changePIN(currentPIN, newPIN) {
+    if (!this._validatePINFormat(newPIN)) {
+      throw new Error(`New PIN must be ${SEC.PIN_MIN}–${SEC.PIN_MAX} digits (numbers only).`);
+    }
     await this.verifyPIN(currentPIN); // throws if wrong
+    const oldKey = this._cryptoKey;
+    const salt = crypto.getRandomValues(new Uint8Array(SEC.SALT_BYTES));
+    const { verifier, key } = await this._deriveV2(newPIN, salt, SEC.KDF_V2_ITERATIONS);
+    await this._reencryptEverything(oldKey, key, verifier, salt);
+  }
 
-    // Re-encrypt all existing data with new key
-    const oldKey   = this._cryptoKey;
-    const salt     = crypto.getRandomValues(new Uint8Array(SEC.SALT_BYTES));
-    const newHash  = await this._hashPIN(newPIN, salt);
-    const newKey   = await this._deriveCryptoKey(newPIN, salt);
-
-    // Decrypt all stored encrypted keys with old key, re-encrypt with new key
+  /**
+   * Re-encrypts all stored data from oldKey to newKey. Every value is
+   * decrypted and re-encrypted in memory first; storage is only written once
+   * all of them succeeded, so a failure cannot leave mixed keys behind.
+   */
+  async _reencryptEverything(oldKey, newKey, verifier, salt) {
     const keysToMigrate = Object.keys(localStorage).filter(k => k.startsWith(SEC.DATA_PREFIX));
-
+    const updated = {};
     for (const storageKey of keysToMigrate) {
-      const raw      = localStorage.getItem(storageKey);
+      const raw = localStorage.getItem(storageKey);
       if (!raw) continue;
       const decrypted = await this._decryptWithKey(raw, oldKey);
-      const reencrypted = await this._encryptWithKey(decrypted, newKey);
-      localStorage.setItem(storageKey, reencrypted);
+      updated[storageKey] = await this._encryptWithKey(decrypted, newKey);
     }
-
-    // Update PIN hash and salt
-    localStorage.setItem(SEC.PIN_HASH_KEY, this._bufToHex(newHash));
+    for (const [storageKey, value] of Object.entries(updated)) {
+      localStorage.setItem(storageKey, value);
+    }
+    localStorage.setItem(SEC.PIN_VERIFIER_KEY, this._bufToHex(verifier));
     localStorage.setItem(SEC.PIN_SALT_KEY, this._bufToHex(salt));
-
+    localStorage.setItem(SEC.KDF_KEY, JSON.stringify({ v: 2, iterations: SEC.KDF_V2_ITERATIONS }));
+    localStorage.removeItem(SEC.PIN_HASH_KEY);
     this._cryptoKey = newKey;
+
+    if (typeof reencryptAllImages === 'function') {
+      try {
+        await reencryptAllImages((stored) => this._decryptWithKey(stored, oldKey));
+      } catch (e) {
+        console.warn('[Security] Some scanned images could not be re-encrypted.');
+      }
+    }
+  }
+
+  async _migrateToV2(pin, legacyKey) {
+    const salt = crypto.getRandomValues(new Uint8Array(SEC.SALT_BYTES));
+    const { verifier, key } = await this._deriveV2(pin, salt, SEC.KDF_V2_ITERATIONS);
+    await this._reencryptEverything(legacyKey, key, verifier, salt);
+    console.info('[Security] Storage upgraded to separated verifier/key (v2).');
+    return key;
+  }
+
+  _readKdf() {
+    try {
+      const kdf = JSON.parse(localStorage.getItem(SEC.KDF_KEY) || 'null');
+      if (kdf && kdf.v === 2 && Number.isInteger(kdf.iterations) && kdf.iterations >= 100000) return kdf;
+    } catch { /* fall through */ }
+    return null;
+  }
+
+  // ---- Public helpers for other modules (idb.js, settings) ----
+  canEncrypt() {
+    return !this._isLocked && !!this._cryptoKey;
+  }
+
+  async encryptText(plaintext) {
+    if (!this.canEncrypt()) throw new Error('[Security] Locked.');
+    return this._encrypt(plaintext);
+  }
+
+  async decryptText(stored) {
+    if (!this.canEncrypt()) throw new Error('[Security] Locked.');
+    return this._decrypt(stored);
+  }
+
+  /** "Erase all data on this device" — explicit user action from Settings. */
+  async eraseEverything() {
+    this._wipeAllData();
+    if ('caches' in window) {
+      try {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k)));
+      } catch { /* ignore */ }
+    }
   }
 
   // ----------------------------------------------------------
@@ -410,13 +502,16 @@ class SecurityManager {
   }
 
   _saveLockoutState() {
-    // Stored in sessionStorage so it resets if the tab is closed
-    sessionStorage.setItem(SEC.LOCKOUT_KEY, JSON.stringify(this._lockoutData));
+    // Kept in localStorage so closing the tab does not reset the counter
+    // (sessionStorage would let anyone retry PINs forever).
+    try {
+      localStorage.setItem(SEC.LOCKOUT_KEY, JSON.stringify(this._lockoutData));
+    } catch { /* storage unavailable */ }
   }
 
   _loadLockoutState() {
     try {
-      const raw = sessionStorage.getItem(SEC.LOCKOUT_KEY);
+      const raw = localStorage.getItem(SEC.LOCKOUT_KEY);
       if (raw) this._lockoutData = JSON.parse(raw);
     } catch { /* ignore */ }
   }
@@ -425,13 +520,23 @@ class SecurityManager {
   // DATA WIPE (last resort after max failed attempts)
   // ----------------------------------------------------------
   _wipeAllData() {
-    // Remove all encrypted study data
+    // Remove all encrypted study data and the PIN material, so the next
+    // visit starts with a fresh setup. The purchase ID is kept so Premium can
+    // be restored.
     const keysToRemove = Object.keys(localStorage).filter(k =>
       k.startsWith(SEC.DATA_PREFIX) || k.startsWith('studysmart_')
     );
     keysToRemove.forEach(k => localStorage.removeItem(k));
+    [SEC.PIN_HASH_KEY, SEC.PIN_VERIFIER_KEY, SEC.PIN_SALT_KEY, SEC.KDF_KEY, SEC.SETUP_DONE_KEY, SEC.LOCKOUT_KEY]
+      .forEach(k => localStorage.removeItem(k));
     sessionStorage.clear();
-    console.warn('[Security] All user data wiped due to repeated PIN failures.');
+    if (typeof deleteAllImages === 'function') {
+      deleteAllImages();
+    }
+    this._cryptoKey = null;
+    this._isSetup = false;
+    this._lockoutData = { attempts: 0, lockedUntil: 0 };
+    console.warn('[Security] All study data on this device was erased.');
   }
 
   // ----------------------------------------------------------
@@ -557,6 +662,36 @@ class SecurityManager {
     );
   }
 
+  /**
+   * v2 key derivation: one PBKDF2 run, then HKDF with different labels for
+   * the stored PIN verifier and the (non-extractable) AES-GCM data key.
+   * Knowing the verifier does not reveal the data key.
+   */
+  async _deriveV2(pin, salt, iterations) {
+    const enc = new TextEncoder();
+    const material = await crypto.subtle.importKey('raw', enc.encode(pin), { name: 'PBKDF2' }, false, ['deriveBits']);
+    const master = await crypto.subtle.deriveBits(
+      { name: 'PBKDF2', salt, iterations, hash: SEC.PBKDF2_HASH },
+      material,
+      256
+    );
+    const hkdfKey = await crypto.subtle.importKey('raw', master, { name: 'HKDF' }, false, ['deriveBits', 'deriveKey']);
+    const empty = new Uint8Array(0);
+    const verifier = new Uint8Array(await crypto.subtle.deriveBits(
+      { name: 'HKDF', hash: 'SHA-256', salt: empty, info: enc.encode('studysmart/pin-verifier/v2') },
+      hkdfKey,
+      256
+    ));
+    const key = await crypto.subtle.deriveKey(
+      { name: 'HKDF', hash: 'SHA-256', salt: empty, info: enc.encode('studysmart/data-key/v2') },
+      hkdfKey,
+      { name: SEC.AES_MODE, length: SEC.AES_KEY_BITS },
+      false,
+      ['encrypt', 'decrypt']
+    );
+    return { verifier, key };
+  }
+
   async _deriveKeyFromPassword(password, salt) {
     const keyMaterial = await crypto.subtle.importKey(
       'raw',
@@ -627,7 +762,7 @@ class SecurityManager {
   }
 
   _validatePINFormat(pin) {
-    return typeof pin === 'string' && /^\d{4,8}$/.test(pin);
+    return typeof pin === 'string' && new RegExp(`^\\d{${SEC.PIN_MIN},${SEC.PIN_MAX}}$`).test(pin);
   }
 
   get isLocked()  { return this._isLocked; }
@@ -712,7 +847,7 @@ function _wireLockScreenEvents() {
       submitBtn.textContent = 'Unlock';
 
       if (msg.startsWith('WIPE:')) {
-        if (errEl) errEl.textContent = '⚠️ All data erased after too many failed attempts. Refresh to start over.';
+        if (errEl) errEl.textContent = '⚠️ All study data on this device was erased after too many failed attempts. Reload the page to start again (restore a backup if you have one).';
         submitBtn.disabled = true;
         pinInput.disabled  = true;
         return;
@@ -755,8 +890,8 @@ function _wireSetupModalEvents() {
     const pin1 = (pinNew?.value     || '').trim();
     const pin2 = (pinConfirm?.value || '').trim();
 
-    if (!pin1 || pin1.length < 4) {
-      _showSetupError('PIN must be at least 4 digits.'); return;
+    if (!pin1 || pin1.length < SEC.PIN_MIN || pin1.length > SEC.PIN_MAX) {
+      _showSetupError(`PIN must be ${SEC.PIN_MIN}–${SEC.PIN_MAX} digits. 6 or more is safer.`); return;
     }
     if (!/^\d+$/.test(pin1)) {
       _showSetupError('PIN must contain numbers only.'); return;

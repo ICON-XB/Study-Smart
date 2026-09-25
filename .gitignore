@@ -21,3 +21,7 @@ npm-debug.log*
 # Node (if added later)
 node_modules/
 dist/
+
+# Local backups made during launch fixes
+_launch_fixes_backup/
+__pycache__/

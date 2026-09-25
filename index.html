@@ -3,27 +3,27 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-  <title>Study-Smart Vision — See it. Understand it. Master it.</title>
+  <title>Study-Smart Vision â€” See it. Understand it. Master it.</title>
   <meta name="description" content="Study-Smart Vision turns university course materials into an intelligent, adaptive study system. Built in Namibia and designed for students everywhere.">
   <meta name="theme-color" content="#0a0a0f">
   
   <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="landing.css">
 
-  <script>
-    // PWA Launch Detection: If running as standalone app, redirect directly to the app
-    if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
-      window.location.replace('app.html');
-    }
-  </script>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta property="og:title" content="Study-Smart Vision">
+  <meta property="og:description" content="Turn your course materials into a study plan, flashcards and focus sessions. Works offline.">
+  <meta property="og:type" content="website">
+  <script src="landing.js" defer></script>
 </head>
 <body>
 
   <header>
     <div class="nav-container">
-      <a href="#" class="logo">Study-Smart Vision</a>
+      <a href="./" class="logo">Study-Smart Vision</a>
       <nav class="nav-links">
         <a href="#how-it-works">How It Works</a>
         <a href="#universities">Universities</a>
@@ -76,14 +76,13 @@
           </div>
         </div>
         <div class="mockup">
-          <div class="mockup-header">Agent Trace</div>
+          <div class="mockup-header">Example: what happened</div>
           <div class="mockup-body">
-            * OpenCV Processing: Local (Device)<br>
-            * Time: 192 ms<br>
-            * Document Detected: Yes<br>
-            * Extracted topic: Data Networks<br>
-            * Recommended 25 mins extra study time<br><br>
-            <a href="app.html" class="btn btn-primary" style="font-family: inherit; font-size: 0.9rem;">Approve & Integrate</a>
+            &bull; OpenCV processing: on this device<br>
+            &bull; Page outline found: yes &mdash; straightened<br>
+            &bull; AI suggested topic: Data Networks<br>
+            &bull; 6 flashcards to review<br><br>
+            <a href="app.html" class="btn btn-primary" style="font-family: inherit; font-size: 0.9rem;">Review &amp; save</a>
           </div>
         </div>
       </div>
@@ -93,22 +92,21 @@
     <section class="section container" style="background: var(--color-surface); border-radius: 24px; padding: 4rem;">
       <div class="grid-2">
         <div class="mockup" style="background: var(--color-bg);">
-          <div class="mockup-header">Build My Semester</div>
+          <div class="mockup-header">Example: Build My Semester</div>
           <div class="mockup-body">
-            ? Course Outline Added<br>
-            ? Assessment Schedule Added<br>
-            ? Module Guide Added<br><br>
-            <strong>Review Your Semester</strong><br>
-            University: University of Cape Town<br>
-            Modules: 4 Detected<br>
-            Assessments: 9 Detected<br><br>
-            <span style="color: var(--color-success)">Ready to commit</span>
+            &check; Course outline added<br>
+            &check; Assessment schedule added<br>
+            &check; Module guide added<br><br>
+            <strong>Review your semester</strong><br>
+            Modules: 4 suggested<br>
+            Assessments: 9 suggested &mdash; check every date<br><br>
+            <span style="color: var(--color-success)">You confirm before anything is saved</span>
           </div>
         </div>
         <div>
           <span class="tagline">Setup in seconds</span>
           <h2>Build your semester from the documents you already have.</h2>
-          <p class="subtitle">Instead of manually configuring everything, students can provide their course materials. Study-Smart proposes your university, programme, modules, and dates. You review everything before it is saved.</p>
+          <p class="subtitle">Instead of typing everything in, add photos of your course materials. With your own Google Gemini API key, Study-Smart suggests modules and assessment dates. You check and correct everything before it is saved.</p>
         </div>
       </div>
     </section>
@@ -117,20 +115,20 @@
     <section class="section container">
       <div class="grid-2">
         <div>
-          <span class="tagline">OpenCV 5 inside</span>
+          <span class="tagline">OpenCV inside</span>
           <h2>Your camera becomes a study tool.</h2>
-          <p class="subtitle">Study-Smart Vision uses OpenCV for substantive local document preprocessing before ever touching the cloud.</p>
+          <p class="subtitle">Study-Smart Vision uses OpenCV on your device to check and clean up each photo. Nothing is uploaded unless you turn on AI features with your own key.</p>
           <ul class="uni-list" style="column-count: 1;">
-            <li>? Document boundary detection</li>
-            <li>? Perspective correction (Deskew)</li>
-            <li>? Blur analysis (Laplacian Variance)</li>
-            <li>? Lighting assessment</li>
-            <li>? Bandwidth optimization (Crop & Compress)</li>
+            <li>&check; Document boundary detection</li>
+            <li>&check; Perspective correction (Deskew)</li>
+            <li>&check; Blur analysis (Laplacian Variance)</li>
+            <li>&check; Lighting assessment</li>
+            <li>&check; Bandwidth optimization (Crop &amp; Compress)</li>
           </ul>
         </div>
         <div>
           <h2>It doesn't just read your notes. It helps decide what comes next.</h2>
-          <p class="subtitle"><strong>Study-Smart sees:</strong> Subnetting appears in your notes.<br>
+          <p class="subtitle"><strong>Study-Smart sees:</strong> Subnetting appears in your notes (AI suggestion).<br>
           <strong>Study-Smart knows:</strong> Your mastery is low, and your assessment is approaching.<br>
           <strong>Study-Smart proposes:</strong> Targeted flashcards and revision time.<br>
           <strong>You decide:</strong> Accept or reject.</p>
@@ -142,7 +140,7 @@
     <section id="universities" class="section container">
       <div class="text-center" style="max-width: 800px; margin: 0 auto; text-align: center;">
         <h2>Your university doesn't need to integrate with Study-Smart.</h2>
-        <p class="subtitle" style="margin: 0 auto 3rem;">Study-Smart Vision is designed for students at universities worldwide. These are just some convenience presets—Study-Smart is NOT limited to them.</p>
+        <p class="subtitle" style="margin: 0 auto 3rem;">Study-Smart Vision is designed for students at universities worldwide. These are just some convenience presets â€” Study-Smart is NOT limited to them. Study-Smart is not affiliated with or endorsed by any of these institutions; their names are listed only so you can pick your own.</p>
       </div>
       
       <ul class="uni-list">
@@ -169,7 +167,7 @@
 
       <div style="margin-top: 3rem; padding: 2rem; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface); text-align: center;">
         <h3>Can't find your university?</h3>
-        <p class="text-muted">Add it yourself or let Study-Smart identify it from your course materials — with your approval.</p>
+        <p class="text-muted">Add it yourself in a few seconds.</p>
       </div>
     </section>
 
@@ -182,7 +180,7 @@
         </div>
         <div class="feature-card">
           <h3>Your academic material belongs to you.</h3>
-          <p class="text-muted">Study-Smart preprocesses documents locally on your device. Cloud processing requires your consent, and temporary images are auto-deleted. Your study data is encrypted locally using AES-GCM.</p>
+          <p class="text-muted">Your study data stays in your browser, encrypted with AES-GCM using a key made from your PIN. Photos are processed on your device. AI features are optional: only if you add your own Gemini key and agree does anything go to Google. There are no accounts, ads or trackers. <a href="privacy.html">Read the Privacy Notice</a>.</p>
         </div>
       </div>
     </section>
@@ -201,48 +199,18 @@
       <div style="text-align: left;">
         <strong>Study-Smart Vision</strong><br>
         <span style="color: var(--color-text-muted); font-size: 0.9rem;">Built in Namibia. Designed for students everywhere.</span><br>
-        <span style="color: var(--color-text-muted); font-size: 0.8rem; margin-top: 0.5rem; display: block;">Built with OpenCV 5 + AWS</span>
+        <span style="color: var(--color-text-muted); font-size: 0.8rem; margin-top: 0.5rem; display: block;">Built with OpenCV.js &middot; &copy; 2026 Deon Kayele</span>
       </div>
       <div class="footer-links">
         <a href="https://github.com/ICON-XB/Study-Smart" target="_blank" rel="noopener">GitHub</a>
-        <a href="#privacy">Privacy</a>
+        <a href="privacy.html">Privacy</a>
+        <a href="terms.html">Terms</a>
+        <a href="copyright.html">Copyright</a>
+        <a href="notices.html">Notices</a>
         <a href="app.html">Launch App</a>
       </div>
     </div>
   </footer>
 
-  <script>
-    // PWA Install Prompt Logic
-    let deferredPrompt;
-    const installBtn = document.getElementById('btn-install');
-    const installBanner = document.getElementById('install-banner');
-
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      deferredPrompt = e;
-      installBtn.style.display = 'inline-flex';
-    });
-
-    installBtn.addEventListener('click', async () => {
-      if (deferredPrompt) {
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        if (outcome === 'accepted') {
-          installBtn.style.display = 'none';
-        }
-        deferredPrompt = null;
-      } else {
-        // Fallback for iOS Safari or desktop browsers without prompt
-        installBanner.style.display = 'block';
-        installBtn.style.display = 'none';
-      }
-    });
-
-    window.addEventListener('appinstalled', () => {
-      installBtn.style.display = 'none';
-      installBanner.style.display = 'none';
-      console.log('PWA was installed');
-    });
-  </script>
 </body>
 </html>
